@@ -1,0 +1,50 @@
+name: build
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkout the SDK
+        uses: actions/checkout@v4
+        with:
+          repository: TalismanDesign/PocketMage_SDK
+          path: sdk
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install icon tool deps
+        run: python3 -m pip install pillow
+
+      - name: Build the app ELF
+        run: make
+        env:
+          PM_SDK_ROOT: ${{ github.workspace }}/sdk
+
+      - name: Build the delivery tar
+        run: make pack
+        env:
+          PM_SDK_ROOT: ${{ github.workspace }}/sdk
+
+      - name: Inspect the artifact
+        run: |
+          readelf -h build/*.app.elf | grep -E 'Class|Data|Entry point'
+          ls -la build/ *.tar
+
+      - name: Gate undefined symbols against the curated SDK surface
+        run: |
+          python3 -m pip install -e ${{ github.workspace }}/sdk
+          python3 -m tools.pm check --ci
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: app-tar
+          path: "*.tar"
