@@ -1,6 +1,6 @@
-#include <stdio.h>
-#include <algorithm>
 #include "pm_app_api.h"
+#include <algorithm>
+#include <stdio.h>
 
 #include <stdint.h>
 #include <string.h>
@@ -39,7 +39,6 @@
     ============================================================
 */
 
-
 // ============================================================
 // CONFIGURATION
 // ============================================================
@@ -49,12 +48,9 @@ static constexpr uint8_t ROOM_H = 8;
 
 static constexpr uint16_t ROOM_VERSION = 1;
 
-static constexpr char WORLD_FILE[] =
-"/oni/world.dat";
+static constexpr char WORLD_FILE[] = "/oni/world.dat";
 
-static constexpr char ROOM_DIRECTORY[] =
-"/oni/rooms/";
-
+static constexpr char ROOM_DIRECTORY[] = "/oni/rooms/";
 
 // ============================================================
 // RUNTIME
@@ -62,56 +58,52 @@ static constexpr char ROOM_DIRECTORY[] =
 
 static constexpr uint32_t POLL_INTERVAL_MS = 10;
 
-static constexpr int K_EXIT_KEY = 12;      // OS exit key ("_EXIT_")
+static constexpr int K_EXIT_KEY = 12; // OS exit key ("_EXIT_")
 
-static constexpr int K_ESC_KEY = 27;       // ESC from a USB keyboard
-
+static constexpr int K_ESC_KEY = 27; // ESC from a USB keyboard
 
 // ============================================================
 // SIMULATION BALANCE
 // ============================================================
 
-static constexpr int HEAT_CONDUCT_DIV = 100;       // orthogonal conduction
+static constexpr int HEAT_CONDUCT_DIV = 100; // orthogonal conduction
 
-static constexpr int HEAT_RELAX_DIV = 32;          // pull toward ambient
+static constexpr int HEAT_RELAX_DIV = 32; // pull toward ambient
 
-static constexpr int ELECTRICAL_HEAT_DIV = 40;     // mW per 0.01 C per tick
+static constexpr int ELECTRICAL_HEAT_DIV = 40; // mW per 0.01 C per tick
 
-static constexpr int GAS_DIFFUSE_DIV = 8;          // orthogonal gas diffusion
+static constexpr int GAS_DIFFUSE_DIV = 8; // orthogonal gas diffusion
 
 static constexpr int MIN_TEMPERATURE_C100 = -5000; // -50.00 C
 
 static constexpr int MAX_TEMPERATURE_C100 = 40000; // 400.00 C
 
-
 // ============================================================
 // MATERIALS
 // ============================================================
 
-enum Material : uint8_t
-{
-    MAT_EMPTY = 0,
+enum Material : uint8_t {
+  MAT_EMPTY = 0,
 
-    MAT_STONE,
-    MAT_DIRT,
-    MAT_WOOD,
-    MAT_IRON,
-    MAT_COPPER,
+  MAT_STONE,
+  MAT_DIRT,
+  MAT_WOOD,
+  MAT_IRON,
+  MAT_COPPER,
 
-    MAT_WATER,
-    MAT_ICE,
+  MAT_WATER,
+  MAT_ICE,
 
-    MAT_OXYGEN,
-    MAT_NITROGEN,
-    MAT_CO2,
-    MAT_HYDROGEN,
-    MAT_HELIUM,
-    MAT_METHANE,
-    MAT_STEAM,
-    MAT_CANISTER,
-    MAT_REACTOR
+  MAT_OXYGEN,
+  MAT_NITROGEN,
+  MAT_CO2,
+  MAT_HYDROGEN,
+  MAT_HELIUM,
+  MAT_METHANE,
+  MAT_STEAM,
+  MAT_CANISTER,
+  MAT_REACTOR
 };
-
 
 // ============================================================
 // RUN BALANCE
@@ -125,19 +117,19 @@ static constexpr int TANK_MAX = 100;
 
 static constexpr int TANK_START = 100;
 
-static constexpr int TANK_DRAIN_IDLE = 1;      // percent per turn
+static constexpr int TANK_DRAIN_IDLE = 1; // percent per turn
 
-static constexpr int TANK_DRAIN_HAZARD = 4;    // percent per turn in a hazard
+static constexpr int TANK_DRAIN_HAZARD = 4; // percent per turn in a hazard
 
-static constexpr int TANK_CANISTER = 50;       // percent restored per canister
+static constexpr int TANK_CANISTER = 50; // percent restored per canister
 
-static constexpr int TURN_PHYSICS_TICKS = 3;   // physics steps folded into a turn
+static constexpr int TURN_PHYSICS_TICKS = 3; // physics steps folded into a turn
 
-static constexpr int32_t HOT_TEMPERATURE_C100 = 6000;   // 60.00 C
+static constexpr int32_t HOT_TEMPERATURE_C100 = 6000; // 60.00 C
 
-static constexpr int32_t COLD_TEMPERATURE_C100 = 0;     // 0.00 C
+static constexpr int32_t COLD_TEMPERATURE_C100 = 0; // 0.00 C
 
-static constexpr uint16_t LOW_OXYGEN = 120;             // 12.0%
+static constexpr uint16_t LOW_OXYGEN = 120; // 12.0%
 
 static constexpr int16_t NORMAL_AMBIENT_C100 = 2000;
 
@@ -153,154 +145,139 @@ static constexpr uint8_t OUTCOME_LOST = 2;
 
 static constexpr uint32_t OUTCOME_HOLD_MS = 4000;
 
-
 // ============================================================
 // ROOM KIND
 // ============================================================
 
-enum RoomKind : uint8_t
-{
-    ROOM_SALVAGE = 0,
-    ROOM_FLOODED,
-    ROOM_HOT,
-    ROOM_COLD,
-    ROOM_TOXIC,
-    ROOM_ELECTRIFIED,
-    ROOM_REACTOR
+enum RoomKind : uint8_t {
+  ROOM_SALVAGE = 0,
+  ROOM_FLOODED,
+  ROOM_HOT,
+  ROOM_COLD,
+  ROOM_TOXIC,
+  ROOM_ELECTRIFIED,
+  ROOM_REACTOR
 };
-
 
 // ============================================================
 // GAS
 // ============================================================
 
-struct Gas
-{
-    uint16_t oxygen;
-    uint16_t nitrogen;
-    uint16_t co2;
+struct Gas {
+  uint16_t oxygen;
+  uint16_t nitrogen;
+  uint16_t co2;
 
-    uint16_t hydrogen;
-    uint16_t helium;
-    uint16_t methane;
-    uint16_t steam;
+  uint16_t hydrogen;
+  uint16_t helium;
+  uint16_t methane;
+  uint16_t steam;
 };
-
 
 // ============================================================
 // ELECTRICITY
 // ============================================================
 
-struct Electrical
-{
-    uint8_t enabled;
+struct Electrical {
+  uint8_t enabled;
 
-    uint16_t voltage_mV;
-    uint16_t resistance_mOhm;
+  uint16_t voltage_mV;
+  uint16_t resistance_mOhm;
 
-    uint16_t current_mA;
-    uint16_t power_mW;
+  uint16_t current_mA;
+  uint16_t power_mW;
 };
-
 
 // ============================================================
 // TILE
 // ============================================================
 
-struct Tile
-{
-    uint8_t material;
+struct Tile {
+  uint8_t material;
 
-    /*
-        Mass stored in grams.
+  /*
+      Mass stored in grams.
 
-        This avoids floats in the save file.
-    */
-    uint32_t mass_g;
+      This avoids floats in the save file.
+  */
+  uint32_t mass_g;
 
-    /*
-        Temperature in 1/100 C.
+  /*
+      Temperature in 1/100 C.
 
-        2000 = 20.00 C
-    */
-    int32_t temperature_c100;
+      2000 = 20.00 C
+  */
+  int32_t temperature_c100;
 
-    Gas gas;
+  Gas gas;
 
-    Electrical electricity;
+  Electrical electricity;
 
-    uint8_t flags;
+  uint8_t flags;
 };
-
 
 // ============================================================
 // ROOM HEADER
 // ============================================================
 
-struct RoomHeader
-{
-    uint32_t magic;
+struct RoomHeader {
+  uint32_t magic;
 
-    uint16_t version;
+  uint16_t version;
 
-    int16_t x;
-    int16_t y;
+  int16_t x;
+  int16_t y;
 
-    /*
-        Temperature the hull leaks toward, in 1/100 C. Set per room kind, so
-        hot rooms stay hot and cold rooms stay cold. 0 is treated as "unset"
-        and reads back as the normal ambient.
-    */
+  /*
+      Temperature the hull leaks toward, in 1/100 C. Set per room kind, so
+      hot rooms stay hot and cold rooms stay cold. 0 is treated as "unset"
+      and reads back as the normal ambient.
+  */
 
-    int16_t ambient_c100;
+  int16_t ambient_c100;
 
-    uint32_t simulationTick;
+  uint32_t simulationTick;
 
-    uint32_t checksum;
+  uint32_t checksum;
 };
-
 
 // ============================================================
 // COMPLETE ROOM
 // ============================================================
 
-struct Room
-{
-    RoomHeader header;
+struct Room {
+  RoomHeader header;
 
-    Tile tiles[ROOM_H][ROOM_W];
+  Tile tiles[ROOM_H][ROOM_W];
 };
-
 
 // ============================================================
 // WORLD STATE
 // ============================================================
 
-struct WorldState
-{
-    int16_t roomX;
-    int16_t roomY;
+struct WorldState {
+  int16_t roomX;
+  int16_t roomY;
 
-    uint8_t playerX;
-    uint8_t playerY;
+  uint8_t playerX;
+  uint8_t playerY;
 
-    uint32_t globalTick;
+  uint32_t globalTick;
 
-    /*
-        Personal O2 reserve, 0..TANK_MAX. It bleeds down every tick and faster
-        inside a hazard, and canisters top it up. At zero the run is lost.
-    */
+  /*
+      Personal O2 reserve, 0..TANK_MAX. It bleeds down every tick and faster
+      inside a hazard, and canisters top it up. At zero the run is lost.
+  */
 
-    uint16_t tank;
+  uint16_t tank;
 
-    /*
-        OUTCOME_RUNNING while the run is live, OUTCOME_WON on the reactor,
-        OUTCOME_LOST when the tank empties.
-    */
+  /*
+      OUTCOME_RUNNING while the run is live, OUTCOME_WON on the reactor,
+      OUTCOME_LOST when the tank empties.
+  */
 
-    uint8_t outcome;
+  uint8_t outcome;
 };
-
 
 // ============================================================
 // GLOBAL GAME STATE
@@ -328,7 +305,6 @@ static uint32_t lastFrameSignature = 0;
 
 static bool showIntro = true;
 
-
 // ============================================================
 // DISPLAY CONSTANTS
 // ============================================================
@@ -349,24 +325,19 @@ static constexpr int PANEL_HEIGHT = 240;
 
 static constexpr int STATUS_BAND_HEIGHT = 26;
 
-static constexpr int CONTENT_HEIGHT =
-PANEL_HEIGHT - STATUS_BAND_HEIGHT;
+static constexpr int CONTENT_HEIGHT = PANEL_HEIGHT - STATUS_BAND_HEIGHT;
 
 static constexpr int TILE_PIXELS = 26;
 
 static constexpr int MAP_X = 0;
 static constexpr int MAP_Y = 0;
 
-static constexpr int MAP_WIDTH =
-ROOM_W * TILE_PIXELS;
+static constexpr int MAP_WIDTH = ROOM_W * TILE_PIXELS;
 
-static constexpr int MAP_HEIGHT =
-ROOM_H * TILE_PIXELS;
+static constexpr int MAP_HEIGHT = ROOM_H * TILE_PIXELS;
 
-static_assert(
-    MAP_HEIGHT <= CONTENT_HEIGHT,
-    "map overflows the content region above the legend band"
-);
+static_assert(MAP_HEIGHT <= CONTENT_HEIGHT,
+              "map overflows the content region above the legend band");
 
 /*
     Readout column, to the right of the map.
@@ -382,68 +353,54 @@ static constexpr int INFO_LINE = 16;
     Control legend band, along the bottom.
 */
 
-static constexpr int STATUS_Y =
-PANEL_HEIGHT - STATUS_BAND_HEIGHT;
-
+static constexpr int STATUS_Y = PANEL_HEIGHT - STATUS_BAND_HEIGHT;
 
 // ============================================================
 // ROOM MAGIC
 // ============================================================
 
-static constexpr uint32_t ROOM_MAGIC =
-0x44445231;   // "DDR1"
-
+static constexpr uint32_t ROOM_MAGIC = 0x44445231; // "DDR1"
 
 // ============================================================
 // UTILITY
 // ============================================================
 
-static void requestRedraw()
-{
-    redrawRequested = true;
+static void requestRedraw() { redrawRequested = true; }
+
+static uint32_t nowMillis() {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+
+  return static_cast<uint32_t>(ts.tv_sec * 1000u + ts.tv_nsec / 1000000u);
 }
-
-
-static uint32_t nowMillis()
-{
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-
-    return static_cast<uint32_t>(
-        ts.tv_sec * 1000u + ts.tv_nsec / 1000000u
-    );
-}
-
 
 // ============================================================
 // DEFAULT TILE
 // ============================================================
 
-static Tile makeEmptyTile()
-{
-    Tile t{};
+static Tile makeEmptyTile() {
+  Tile t{};
 
-    t.material = MAT_EMPTY;
+  t.material = MAT_EMPTY;
 
-    t.mass_g = 0;
+  t.mass_g = 0;
 
-    t.temperature_c100 = NORMAL_AMBIENT_C100;
+  t.temperature_c100 = NORMAL_AMBIENT_C100;
 
-    /*
-        Atmosphere:
+  /*
+      Atmosphere:
 
-        O2 = 21%
-        N2 = 79%
+      O2 = 21%
+      N2 = 79%
 
-        Stored as thousandths.
-    */
+      Stored as thousandths.
+  */
 
-    t.gas.oxygen = 210;
-    t.gas.nitrogen = 790;
+  t.gas.oxygen = 210;
+  t.gas.nitrogen = 790;
 
-    return t;
+  return t;
 }
-
 
 // ============================================================
 // DEFAULT ROOM
@@ -454,444 +411,330 @@ static Tile makeEmptyTile()
     looks the same across sessions and matches whatever was saved for it.
 */
 
-static RoomKind roomKind(int16_t x, int16_t y)
-{
-    if (x == REACTOR_ROOM_X && y == REACTOR_ROOM_Y)
-        return ROOM_REACTOR;
+static RoomKind roomKind(int16_t x, int16_t y) {
+  if (x == REACTOR_ROOM_X && y == REACTOR_ROOM_Y)
+    return ROOM_REACTOR;
 
-    if (x == 0 && y == 0)
-        return ROOM_SALVAGE;
+  if (x == 0 && y == 0)
+    return ROOM_SALVAGE;
 
-    const uint32_t h =
-        (static_cast<uint32_t>(x + 101) * 73856093u) ^
-        (static_cast<uint32_t>(y + 53) * 19349663u);
+  const uint32_t h = (static_cast<uint32_t>(x + 101) * 73856093u) ^
+                     (static_cast<uint32_t>(y + 53) * 19349663u);
 
-    switch (h % 5u)
-    {
-    case 0: return ROOM_FLOODED;
-    case 1: return ROOM_HOT;
-    case 2: return ROOM_TOXIC;
-    case 3: return ROOM_ELECTRIFIED;
-    default: return ROOM_COLD;
-    }
+  switch (h % 5u) {
+  case 0:
+    return ROOM_FLOODED;
+  case 1:
+    return ROOM_HOT;
+  case 2:
+    return ROOM_TOXIC;
+  case 3:
+    return ROOM_ELECTRIFIED;
+  default:
+    return ROOM_COLD;
+  }
 }
 
-
-static int16_t roomAmbient(RoomKind kind)
-{
-    switch (kind)
-    {
-    case ROOM_HOT:  return HOT_AMBIENT_C100;
-    case ROOM_COLD: return COLD_AMBIENT_C100;
-    default:        return NORMAL_AMBIENT_C100;
-    }
+static int16_t roomAmbient(RoomKind kind) {
+  switch (kind) {
+  case ROOM_HOT:
+    return HOT_AMBIENT_C100;
+  case ROOM_COLD:
+    return COLD_AMBIENT_C100;
+  default:
+    return NORMAL_AMBIENT_C100;
+  }
 }
 
+static void generateRoom(Room &room, int16_t x, int16_t y) {
+  memset(&room, 0, sizeof(Room));
 
-static void generateRoom(
-    Room& room,
-    int16_t x,
-    int16_t y)
-{
-    memset(&room, 0, sizeof(Room));
+  room.header.magic = ROOM_MAGIC;
+  room.header.version = ROOM_VERSION;
 
-    room.header.magic = ROOM_MAGIC;
-    room.header.version = ROOM_VERSION;
+  room.header.x = x;
+  room.header.y = y;
 
-    room.header.x = x;
-    room.header.y = y;
+  const RoomKind kind = roomKind(x, y);
 
-    const RoomKind kind =
-        roomKind(x, y);
+  room.header.ambient_c100 = roomAmbient(kind);
 
-    room.header.ambient_c100 =
-        roomAmbient(kind);
+  room.header.simulationTick = 0;
 
-    room.header.simulationTick = 0;
+  for (uint8_t ty = 0; ty < ROOM_H; ty++) {
+    for (uint8_t tx = 0; tx < ROOM_W; tx++) {
+      room.tiles[ty][tx] = makeEmptyTile();
 
-    for (uint8_t ty = 0; ty < ROOM_H; ty++)
-    {
-        for (uint8_t tx = 0; tx < ROOM_W; tx++)
-        {
-            room.tiles[ty][tx] =
-                makeEmptyTile();
+      room.tiles[ty][tx].temperature_c100 = room.header.ambient_c100;
+    }
+  }
 
-            room.tiles[ty][tx].temperature_c100 =
-                room.header.ambient_c100;
-        }
+  /*
+      ROOM WALLS
+
+      # # # # X # # #
+      #             #
+      #             #
+      X             X
+      #             #
+      #             #
+      #             #
+      # # # # X # # #
+
+      X = exit
+  */
+
+  for (uint8_t xPos = 0; xPos < ROOM_W; xPos++) {
+    room.tiles[0][xPos].material = MAT_STONE;
+
+    room.tiles[0][xPos].mass_g = 10000;
+
+    room.tiles[ROOM_H - 1][xPos].material = MAT_STONE;
+
+    room.tiles[ROOM_H - 1][xPos].mass_g = 10000;
+  }
+
+  for (uint8_t yPos = 0; yPos < ROOM_H; yPos++) {
+    room.tiles[yPos][0].material = MAT_STONE;
+
+    room.tiles[yPos][0].mass_g = 10000;
+
+    room.tiles[yPos][ROOM_W - 1].material = MAT_STONE;
+
+    room.tiles[yPos][ROOM_W - 1].mass_g = 10000;
+  }
+
+  /*
+      Open the four doors.
+  */
+
+  const uint8_t cx = ROOM_W / 2;
+  const uint8_t cy = ROOM_H / 2;
+
+  room.tiles[0][cx] = makeEmptyTile();
+
+  room.tiles[ROOM_H - 1][cx] = makeEmptyTile();
+
+  room.tiles[cy][0] = makeEmptyTile();
+
+  room.tiles[cy][ROOM_W - 1] = makeEmptyTile();
+
+  /*
+      Decorate the room by kind. Every non-reactor room carries a canister;
+      hazards are arranged so the door-to-door crossing stays possible.
+  */
+
+  switch (kind) {
+  case ROOM_SALVAGE:
+    room.tiles[2][2].material = MAT_CANISTER;
+    room.tiles[2][2].mass_g = 1000;
+
+    room.tiles[5][5].material = MAT_CANISTER;
+    room.tiles[5][5].mass_g = 1000;
+    break;
+
+  case ROOM_FLOODED:
+    for (uint8_t ty = 4; ty < ROOM_H - 1; ty++) {
+      for (uint8_t tx = 1; tx < ROOM_W - 1; tx++) {
+        room.tiles[ty][tx].material = MAT_WATER;
+        room.tiles[ty][tx].mass_g = 1000;
+      }
     }
 
+    room.tiles[1][2].material = MAT_CANISTER;
+    room.tiles[1][2].mass_g = 1000;
+    break;
 
-    /*
-        ROOM WALLS
+  case ROOM_HOT:
+    room.tiles[3][3].material = MAT_STONE;
+    room.tiles[3][3].mass_g = 25000;
 
-        # # # # X # # #
-        #             #
-        #             #
-        X             X
-        #             #
-        #             #
-        #             #
-        # # # # X # # #
+    room.tiles[4][5].material = MAT_CANISTER;
+    room.tiles[4][5].mass_g = 1000;
+    break;
 
-        X = exit
-    */
+  case ROOM_COLD:
+    room.tiles[4][2].material = MAT_ICE;
+    room.tiles[4][2].mass_g = 1000;
 
-    for (uint8_t xPos = 0;
-        xPos < ROOM_W;
-        xPos++)
-    {
-        room.tiles[0][xPos].material =
-            MAT_STONE;
+    room.tiles[3][3].material = MAT_CANISTER;
+    room.tiles[3][3].mass_g = 1000;
+    break;
 
-        room.tiles[0][xPos].mass_g =
-            10000;
-
-        room.tiles[ROOM_H - 1][xPos].material =
-            MAT_STONE;
-
-        room.tiles[ROOM_H - 1][xPos].mass_g =
-            10000;
+  case ROOM_TOXIC:
+    for (uint8_t ty = 1; ty < ROOM_H - 1; ty++) {
+      for (uint8_t tx = 1; tx < ROOM_W - 1; tx++) {
+        room.tiles[ty][tx].gas.oxygen = 40;
+        room.tiles[ty][tx].gas.co2 = 900;
+      }
     }
 
+    room.tiles[3][3].material = MAT_CANISTER;
+    room.tiles[3][3].mass_g = 1000;
+    break;
 
-    for (uint8_t yPos = 0;
-        yPos < ROOM_H;
-        yPos++)
-    {
-        room.tiles[yPos][0].material =
-            MAT_STONE;
-
-        room.tiles[yPos][0].mass_g =
-            10000;
-
-        room.tiles[yPos][ROOM_W - 1].material =
-            MAT_STONE;
-
-        room.tiles[yPos][ROOM_W - 1].mass_g =
-            10000;
+  case ROOM_ELECTRIFIED:
+    for (uint8_t ty = 1; ty < ROOM_H - 1; ty++) {
+      for (uint8_t tx = 1; tx < ROOM_W - 1; tx++) {
+        if (((ty + tx) & 1u) == 0) {
+          room.tiles[ty][tx].electricity.enabled = 1;
+          room.tiles[ty][tx].electricity.voltage_mV = 12000;
+          room.tiles[ty][tx].electricity.resistance_mOhm = 6000;
+        }
+      }
     }
 
+    room.tiles[1][2].material = MAT_CANISTER;
+    room.tiles[1][2].mass_g = 1000;
+    break;
 
-    /*
-        Open the four doors.
-    */
-
-    const uint8_t cx = ROOM_W / 2;
-    const uint8_t cy = ROOM_H / 2;
-
-    room.tiles[0][cx] =
-        makeEmptyTile();
-
-    room.tiles[ROOM_H - 1][cx] =
-        makeEmptyTile();
-
-    room.tiles[cy][0] =
-        makeEmptyTile();
-
-    room.tiles[cy][ROOM_W - 1] =
-        makeEmptyTile();
-
-
-    /*
-        Decorate the room by kind. Every non-reactor room carries a canister;
-        hazards are arranged so the door-to-door crossing stays possible.
-    */
-
-    switch (kind)
-    {
-    case ROOM_SALVAGE:
-        room.tiles[2][2].material = MAT_CANISTER;
-        room.tiles[2][2].mass_g = 1000;
-
-        room.tiles[5][5].material = MAT_CANISTER;
-        room.tiles[5][5].mass_g = 1000;
-        break;
-
-    case ROOM_FLOODED:
-        for (uint8_t ty = 4; ty < ROOM_H - 1; ty++)
-        {
-            for (uint8_t tx = 1; tx < ROOM_W - 1; tx++)
-            {
-                room.tiles[ty][tx].material = MAT_WATER;
-                room.tiles[ty][tx].mass_g = 1000;
-            }
-        }
-
-        room.tiles[1][2].material = MAT_CANISTER;
-        room.tiles[1][2].mass_g = 1000;
-        break;
-
-    case ROOM_HOT:
-        room.tiles[3][3].material = MAT_STONE;
-        room.tiles[3][3].mass_g = 25000;
-
-        room.tiles[4][5].material = MAT_CANISTER;
-        room.tiles[4][5].mass_g = 1000;
-        break;
-
-    case ROOM_COLD:
-        room.tiles[4][2].material = MAT_ICE;
-        room.tiles[4][2].mass_g = 1000;
-
-        room.tiles[3][3].material = MAT_CANISTER;
-        room.tiles[3][3].mass_g = 1000;
-        break;
-
-    case ROOM_TOXIC:
-        for (uint8_t ty = 1; ty < ROOM_H - 1; ty++)
-        {
-            for (uint8_t tx = 1; tx < ROOM_W - 1; tx++)
-            {
-                room.tiles[ty][tx].gas.oxygen = 40;
-                room.tiles[ty][tx].gas.co2 = 900;
-            }
-        }
-
-        room.tiles[3][3].material = MAT_CANISTER;
-        room.tiles[3][3].mass_g = 1000;
-        break;
-
-    case ROOM_ELECTRIFIED:
-        for (uint8_t ty = 1; ty < ROOM_H - 1; ty++)
-        {
-            for (uint8_t tx = 1; tx < ROOM_W - 1; tx++)
-            {
-                if (((ty + tx) & 1u) == 0)
-                {
-                    room.tiles[ty][tx].electricity.enabled = 1;
-                    room.tiles[ty][tx].electricity.voltage_mV = 12000;
-                    room.tiles[ty][tx].electricity.resistance_mOhm = 6000;
-                }
-            }
-        }
-
-        room.tiles[1][2].material = MAT_CANISTER;
-        room.tiles[1][2].mass_g = 1000;
-        break;
-
-    case ROOM_REACTOR:
-        room.tiles[cy][cx].material = MAT_REACTOR;
-        room.tiles[cy][cx].mass_g = 10000;
-        break;
-    }
+  case ROOM_REACTOR:
+    room.tiles[cy][cx].material = MAT_REACTOR;
+    room.tiles[cy][cx].mass_g = 10000;
+    break;
+  }
 }
-
 
 // ============================================================
 // SIMPLE CHECKSUM
 // ============================================================
 
-static uint32_t roomChecksum(
-    const Room& room)
-{
-    const uint8_t* data =
-        reinterpret_cast<const uint8_t*>(
-            room.tiles);
+static uint32_t roomChecksum(const Room &room) {
+  const uint8_t *data = reinterpret_cast<const uint8_t *>(room.tiles);
 
-    const size_t size =
-        sizeof(room.tiles);
+  const size_t size = sizeof(room.tiles);
 
-    uint32_t hash =
-        2166136261UL;
+  uint32_t hash = 2166136261UL;
 
-    for (size_t i = 0;
-        i < size;
-        i++)
-    {
-        hash ^= data[i];
+  for (size_t i = 0; i < size; i++) {
+    hash ^= data[i];
 
-        hash *= 16777619UL;
-    }
+    hash *= 16777619UL;
+  }
 
-    return hash;
+  return hash;
 }
-
 
 // ============================================================
 // ROOM FILE NAME
 // ============================================================
 
-static void roomFilename(char* buf, size_t sz, int16_t x, int16_t y)
-{
-    snprintf(buf, sz, "%s%d_%d.dat", ROOM_DIRECTORY, x, y);
+static void roomFilename(char *buf, size_t sz, int16_t x, int16_t y) {
+  snprintf(buf, sz, "%s%d_%d.dat", ROOM_DIRECTORY, x, y);
 }
-
 
 // ============================================================
 // ENSURE GAME DIRECTORY
 // ============================================================
 
-static void ensureDirectories()
-{
-    pm_sd_mkdir("/oni");
-    pm_sd_mkdir("/oni/rooms");
-
+static void ensureDirectories() {
+  pm_sd_mkdir("/oni");
+  pm_sd_mkdir("/oni/rooms");
 }
-
 
 // ============================================================
 // SAVE ROOM
 // ============================================================
 
-static bool saveRoom(
-    const Room& room)
-{
-    char filename[48];
-    roomFilename(filename, sizeof(filename), room.header.x, room.header.y);
-    Room copy = room;
-    copy.header.checksum = roomChecksum(copy);
-    return pm_sd_write_binary_file(filename,
-                                   reinterpret_cast<uint8_t*>(&copy),
-                                   sizeof(Room));
+static bool saveRoom(const Room &room) {
+  char filename[48];
+  roomFilename(filename, sizeof(filename), room.header.x, room.header.y);
+  Room copy = room;
+  copy.header.checksum = roomChecksum(copy);
+  return pm_sd_write_binary_file(filename, reinterpret_cast<uint8_t *>(&copy),
+                                 sizeof(Room));
 }
-
 
 // ============================================================
 // LOAD ROOM
 // ============================================================
 
-static bool loadRoom(
-    int16_t x,
-    int16_t y)
-{
-    char filename[48];
-    roomFilename(filename, sizeof(filename), x, y);
-    uint32_t fileSize = (uint32_t)pm_sd_get_file_size(filename);
-    if (fileSize != sizeof(Room)) {
-        return false;
-    }
-    Room loaded{};
-    bool success = pm_sd_read_binary_file(filename,
-                                          reinterpret_cast<uint8_t*>(&loaded),
-                                          sizeof(Room));
+static bool loadRoom(int16_t x, int16_t y) {
+  char filename[48];
+  roomFilename(filename, sizeof(filename), x, y);
+  uint32_t fileSize = (uint32_t)pm_sd_get_file_size(filename);
+  if (fileSize != sizeof(Room)) {
+    return false;
+  }
+  Room loaded{};
+  bool success = pm_sd_read_binary_file(
+      filename, reinterpret_cast<uint8_t *>(&loaded), sizeof(Room));
 
+  if (!success)
+    return false;
 
-    if (!success)
-        return false;
+  if (loaded.header.magic != ROOM_MAGIC)
+    return false;
 
-    if (loaded.header.magic != ROOM_MAGIC)
-        return false;
+  if (loaded.header.version != ROOM_VERSION)
+    return false;
 
-    if (loaded.header.version != ROOM_VERSION)
-        return false;
+  if (loaded.header.x != x || loaded.header.y != y)
+    return false;
 
-    if (loaded.header.x != x ||
-        loaded.header.y != y)
-        return false;
+  /*
+      Verify checksum.
 
-    /*
-        Verify checksum.
+      Temporarily preserve stored checksum.
+  */
 
-        Temporarily preserve stored checksum.
-    */
+  uint32_t stored = loaded.header.checksum;
 
-    uint32_t stored =
-        loaded.header.checksum;
+  loaded.header.checksum = 0;
 
-    loaded.header.checksum = 0;
+  uint32_t calculated = roomChecksum(loaded);
 
-    uint32_t calculated =
-        roomChecksum(loaded);
+  loaded.header.checksum = stored;
 
-    loaded.header.checksum =
-        stored;
+  if (stored != calculated)
+    return false;
 
-    if (stored != calculated)
-        return false;
+  currentRoom = loaded;
 
-    currentRoom = loaded;
-
-    return true;
+  return true;
 }
-
 
 // ============================================================
 // LOAD OR CREATE ROOM
 // ============================================================
 
-static void loadOrCreateRoom(
-    int16_t x,
-    int16_t y)
-{
-    if (!loadRoom(x, y))
-    {
-        generateRoom(
-            currentRoom,
-            x,
-            y);
+static void loadOrCreateRoom(int16_t x, int16_t y) {
+  if (!loadRoom(x, y)) {
+    generateRoom(currentRoom, x, y);
 
-        saveRoom(currentRoom);
-    }
+    saveRoom(currentRoom);
+  }
 }
-
 
 // ============================================================
 // SAVE WORLD
 // ============================================================
 
-static void saveWorld()
-{
-    pm_sd_write_binary_file(WORLD_FILE, reinterpret_cast<uint8_t*>(&worldState), sizeof(worldState));
+static void saveWorld() {
+  pm_sd_write_binary_file(WORLD_FILE, reinterpret_cast<uint8_t *>(&worldState),
+                          sizeof(worldState));
 }
-
 
 // ============================================================
 // LOAD WORLD
 // ============================================================
 
-static bool loadWorld()
-{
-    uint32_t size = (uint32_t)pm_sd_get_file_size(WORLD_FILE);
-    if (size != sizeof(WorldState)) return false;
-    return pm_sd_read_binary_file(WORLD_FILE, reinterpret_cast<uint8_t*>(&worldState), sizeof(WorldState));
+static bool loadWorld() {
+  uint32_t size = (uint32_t)pm_sd_get_file_size(WORLD_FILE);
+  if (size != sizeof(WorldState))
+    return false;
+  return pm_sd_read_binary_file(
+      WORLD_FILE, reinterpret_cast<uint8_t *>(&worldState), sizeof(WorldState));
 }
-
 
 // ============================================================
 // LOAD INITIAL WORLD
 // ============================================================
 
-static void initializeWorld()
-{
-    ensureDirectories();
+static void initializeWorld() {
+  ensureDirectories();
 
-    if (!loadWorld())
-    {
-        worldState.roomX = 0;
-        worldState.roomY = 0;
-
-        worldState.playerX = 4;
-        worldState.playerY = 4;
-
-        worldState.globalTick = 0;
-
-        worldState.tank = TANK_START;
-
-        worldState.outcome = OUTCOME_RUNNING;
-
-        saveWorld();
-    }
-
-    loadOrCreateRoom(
-        worldState.roomX,
-        worldState.roomY);
-
-    requestRedraw();
-}
-
-
-// ============================================================
-// NEW RUN
-// ============================================================
-
-/*
-    Start a fresh descent: back to the landing room with a full tank. The room
-    layout is deterministic, so only the world state needs resetting.
-*/
-
-static void newRun()
-{
+  if (!loadWorld()) {
     worldState.roomX = 0;
     worldState.roomY = 0;
 
@@ -905,16 +748,43 @@ static void newRun()
     worldState.outcome = OUTCOME_RUNNING;
 
     saveWorld();
+  }
 
-    loadOrCreateRoom(
-        worldState.roomX,
-        worldState.roomY);
+  loadOrCreateRoom(worldState.roomX, worldState.roomY);
 
-    pm_oled_sysmsg("NEW RUN", 1000);
-
-    requestRedraw();
+  requestRedraw();
 }
 
+// ============================================================
+// NEW RUN
+// ============================================================
+
+/*
+    Start a fresh descent: back to the landing room with a full tank. The room
+    layout is deterministic, so only the world state needs resetting.
+*/
+
+static void newRun() {
+  worldState.roomX = 0;
+  worldState.roomY = 0;
+
+  worldState.playerX = 4;
+  worldState.playerY = 4;
+
+  worldState.globalTick = 0;
+
+  worldState.tank = TANK_START;
+
+  worldState.outcome = OUTCOME_RUNNING;
+
+  saveWorld();
+
+  loadOrCreateRoom(worldState.roomX, worldState.roomY);
+
+  pm_oled_sysmsg("NEW RUN", 1000);
+
+  requestRedraw();
+}
 
 // ============================================================
 // CHANGE ROOM
@@ -929,198 +799,134 @@ static void enterTile();
 
 static void advanceTurn();
 
-static void changeRoom(
-    int16_t newX,
-    int16_t newY,
-    uint8_t newPlayerX,
-    uint8_t newPlayerY)
-{
-    /*
-        Save the room we're leaving.
-    */
+static void changeRoom(int16_t newX, int16_t newY, uint8_t newPlayerX,
+                       uint8_t newPlayerY) {
+  /*
+      Save the room we're leaving.
+  */
 
-    currentRoom.header.simulationTick =
-        worldState.globalTick;
+  currentRoom.header.simulationTick = worldState.globalTick;
 
-    saveRoom(currentRoom);
+  saveRoom(currentRoom);
 
+  /*
+      Change coordinates.
+  */
 
-    /*
-        Change coordinates.
-    */
+  worldState.roomX = newX;
+  worldState.roomY = newY;
 
-    worldState.roomX = newX;
-    worldState.roomY = newY;
+  worldState.playerX = newPlayerX;
 
-    worldState.playerX =
-        newPlayerX;
+  worldState.playerY = newPlayerY;
 
-    worldState.playerY =
-        newPlayerY;
+  /*
+      Load or generate destination.
+  */
 
+  loadOrCreateRoom(newX, newY);
 
-    /*
-        Load or generate destination.
-    */
+  enterTile();
 
-    loadOrCreateRoom(
-        newX,
-        newY);
+  advanceTurn();
 
-
-    enterTile();
-
-    advanceTurn();
-
-    saveWorld();
+  saveWorld();
 }
-
 
 // ============================================================
 // PLAYER MOVEMENT
 // ============================================================
 
-static void movePlayer(
-    int dx,
-    int dy)
-{
-    int x =
-        worldState.playerX;
+static void movePlayer(int dx, int dy) {
+  int x = worldState.playerX;
 
-    int y =
-        worldState.playerY;
+  int y = worldState.playerY;
 
-    int nx = x + dx;
-    int ny = y + dy;
+  int nx = x + dx;
+  int ny = y + dy;
 
+  /*
+      Normal movement.
+  */
+
+  if (nx >= 0 && nx < ROOM_W && ny >= 0 && ny < ROOM_H) {
+    Tile &destination = currentRoom.tiles[ny][nx];
 
     /*
-        Normal movement.
+        Stone is currently impassable.
     */
 
-    if (nx >= 0 &&
-        nx < ROOM_W &&
-        ny >= 0 &&
-        ny < ROOM_H)
-    {
-        Tile& destination =
-            currentRoom.tiles[ny][nx];
-
-        /*
-            Stone is currently impassable.
-        */
-
-        if (destination.material ==
-            MAT_STONE)
-        {
-            return;
-        }
-
-        worldState.playerX =
-            nx;
-
-        worldState.playerY =
-            ny;
-
-        enterTile();
-
-        advanceTurn();
-
-        return;
+    if (destination.material == MAT_STONE) {
+      return;
     }
 
+    worldState.playerX = nx;
 
-    /*
-        ROOM EXITS
-    */
+    worldState.playerY = ny;
 
-    const uint8_t cx =
-        ROOM_W / 2;
+    enterTile();
 
-    const uint8_t cy =
-        ROOM_H / 2;
+    advanceTurn();
 
+    return;
+  }
 
-    /*
-        NORTH
-    */
+  /*
+      ROOM EXITS
+  */
 
-    if (dy < 0 &&
-        y == 0 &&
-        x == cx)
-    {
-        changeRoom(
-            worldState.roomX,
-            worldState.roomY - 1,
+  const uint8_t cx = ROOM_W / 2;
 
-            cx,
-            ROOM_H - 1
-        );
+  const uint8_t cy = ROOM_H / 2;
 
-        return;
-    }
+  /*
+      NORTH
+  */
 
+  if (dy < 0 && y == 0 && x == cx) {
+    changeRoom(worldState.roomX, worldState.roomY - 1,
 
-    /*
-        SOUTH
-    */
+               cx, ROOM_H - 1);
 
-    if (dy > 0 &&
-        y == ROOM_H - 1 &&
-        x == cx)
-    {
-        changeRoom(
-            worldState.roomX,
-            worldState.roomY + 1,
+    return;
+  }
 
-            cx,
-            0
-        );
+  /*
+      SOUTH
+  */
 
-        return;
-    }
+  if (dy > 0 && y == ROOM_H - 1 && x == cx) {
+    changeRoom(worldState.roomX, worldState.roomY + 1,
 
+               cx, 0);
 
-    /*
-        WEST
-    */
+    return;
+  }
 
-    if (dx < 0 &&
-        x == 0 &&
-        y == cy)
-    {
-        changeRoom(
-            worldState.roomX - 1,
-            worldState.roomY,
+  /*
+      WEST
+  */
 
-            ROOM_W - 1,
-            cy
-        );
+  if (dx < 0 && x == 0 && y == cy) {
+    changeRoom(worldState.roomX - 1, worldState.roomY,
 
-        return;
-    }
+               ROOM_W - 1, cy);
 
+    return;
+  }
 
-    /*
-        EAST
-    */
+  /*
+      EAST
+  */
 
-    if (dx > 0 &&
-        x == ROOM_W - 1 &&
-        y == cy)
-    {
-        changeRoom(
-            worldState.roomX + 1,
-            worldState.roomY,
+  if (dx > 0 && x == ROOM_W - 1 && y == cy) {
+    changeRoom(worldState.roomX + 1, worldState.roomY,
 
-            0,
-            cy
-        );
+               0, cy);
 
-        return;
-    }
+    return;
+  }
 }
-
 
 // ============================================================
 // GAS SIMULATION
@@ -1134,300 +940,201 @@ static void movePlayer(
     acts as a wall: gas neither enters it nor leaves it.
 */
 
-static void diffuseGas(
-    uint16_t Gas::* field)
-{
-    static uint16_t before[ROOM_H][ROOM_W];
+static void diffuseGas(uint16_t Gas::*field) {
+  static uint16_t before[ROOM_H][ROOM_W];
 
-    for (uint8_t y = 0; y < ROOM_H; y++)
-    {
-        for (uint8_t x = 0; x < ROOM_W; x++)
-        {
-            before[y][x] =
-                currentRoom.tiles[y][x].gas.*field;
-        }
+  for (uint8_t y = 0; y < ROOM_H; y++) {
+    for (uint8_t x = 0; x < ROOM_W; x++) {
+      before[y][x] = currentRoom.tiles[y][x].gas.*field;
     }
+  }
 
-    for (uint8_t y = 0; y < ROOM_H; y++)
-    {
-        for (uint8_t x = 0; x < ROOM_W; x++)
-        {
-            Tile& tile =
-                currentRoom.tiles[y][x];
+  for (uint8_t y = 0; y < ROOM_H; y++) {
+    for (uint8_t x = 0; x < ROOM_W; x++) {
+      Tile &tile = currentRoom.tiles[y][x];
 
-            if (tile.material == MAT_STONE)
-            {
-                tile.gas.*field = 0;
-                continue;
-            }
+      if (tile.material == MAT_STONE) {
+        tile.gas.*field = 0;
+        continue;
+      }
 
-            const int32_t self =
-                before[y][x];
+      const int32_t self = before[y][x];
 
-            int32_t value = self;
+      int32_t value = self;
 
+      if (x > 0 && currentRoom.tiles[y][x - 1].material != MAT_STONE) {
+        value += (before[y][x - 1] - self) / GAS_DIFFUSE_DIV;
+      }
 
-            if (x > 0 &&
-                currentRoom.tiles[y][x - 1].material != MAT_STONE)
-            {
-                value += (before[y][x - 1] - self) /
-                    GAS_DIFFUSE_DIV;
-            }
+      if (x + 1 < ROOM_W && currentRoom.tiles[y][x + 1].material != MAT_STONE) {
+        value += (before[y][x + 1] - self) / GAS_DIFFUSE_DIV;
+      }
 
-            if (x + 1 < ROOM_W &&
-                currentRoom.tiles[y][x + 1].material != MAT_STONE)
-            {
-                value += (before[y][x + 1] - self) /
-                    GAS_DIFFUSE_DIV;
-            }
+      if (y > 0 && currentRoom.tiles[y - 1][x].material != MAT_STONE) {
+        value += (before[y - 1][x] - self) / GAS_DIFFUSE_DIV;
+      }
 
-            if (y > 0 &&
-                currentRoom.tiles[y - 1][x].material != MAT_STONE)
-            {
-                value += (before[y - 1][x] - self) /
-                    GAS_DIFFUSE_DIV;
-            }
+      if (y + 1 < ROOM_H && currentRoom.tiles[y + 1][x].material != MAT_STONE) {
+        value += (before[y + 1][x] - self) / GAS_DIFFUSE_DIV;
+      }
 
-            if (y + 1 < ROOM_H &&
-                currentRoom.tiles[y + 1][x].material != MAT_STONE)
-            {
-                value += (before[y + 1][x] - self) /
-                    GAS_DIFFUSE_DIV;
-            }
+      if (value < 0)
+        value = 0;
+      else if (value > 0xFFFF)
+        value = 0xFFFF;
 
-
-            if (value < 0)
-                value = 0;
-            else if (value > 0xFFFF)
-                value = 0xFFFF;
-
-
-            tile.gas.*field =
-                static_cast<uint16_t>(value);
-        }
+      tile.gas.*field = static_cast<uint16_t>(value);
     }
+  }
 }
 
-
-static void simulateGas()
-{
-    diffuseGas(&Gas::oxygen);
-    diffuseGas(&Gas::nitrogen);
-    diffuseGas(&Gas::co2);
-    diffuseGas(&Gas::hydrogen);
-    diffuseGas(&Gas::helium);
-    diffuseGas(&Gas::methane);
-    diffuseGas(&Gas::steam);
+static void simulateGas() {
+  diffuseGas(&Gas::oxygen);
+  diffuseGas(&Gas::nitrogen);
+  diffuseGas(&Gas::co2);
+  diffuseGas(&Gas::hydrogen);
+  diffuseGas(&Gas::helium);
+  diffuseGas(&Gas::methane);
+  diffuseGas(&Gas::steam);
 }
-
 
 // ============================================================
 // LIQUID SIMULATION
 // ============================================================
 
-static void simulateWater()
-{
-    /*
-        Bottom-to-top update.
+static void simulateWater() {
+  /*
+      Bottom-to-top update.
 
-        Water tries to fall first.
-    */
+      Water tries to fall first.
+  */
 
-    for (int y = ROOM_H - 2;
-        y >= 1;
-        y--)
-    {
-        for (int x = 1;
-            x < ROOM_W - 1;
-            x++)
-        {
-            Tile& source =
-                currentRoom.tiles[y][x];
+  for (int y = ROOM_H - 2; y >= 1; y--) {
+    for (int x = 1; x < ROOM_W - 1; x++) {
+      Tile &source = currentRoom.tiles[y][x];
 
-            if (source.material !=
-                MAT_WATER)
-            {
-                continue;
-            }
+      if (source.material != MAT_WATER) {
+        continue;
+      }
 
-            if (source.mass_g == 0)
-                continue;
+      if (source.mass_g == 0)
+        continue;
 
+      Tile &below = currentRoom.tiles[y + 1][x];
 
-            Tile& below =
-                currentRoom.tiles[y + 1][x];
+      /*
+          Fall downward.
+      */
 
+      if (below.material == MAT_EMPTY && below.mass_g == 0) {
+        uint32_t amount = std::min(source.mass_g, (uint32_t)100);
 
-            /*
-                Fall downward.
-            */
+        source.mass_g -= amount;
 
-            if (below.material ==
-                MAT_EMPTY &&
-                below.mass_g == 0)
-            {
-                uint32_t amount =
-                    std::min(
-                        source.mass_g,
-                        (uint32_t)100
-                    );
+        below.material = MAT_WATER;
 
-                source.mass_g -= amount;
+        below.mass_g += amount;
 
-                below.material =
-                    MAT_WATER;
+        below.temperature_c100 = source.temperature_c100;
 
-                below.mass_g += amount;
+        continue;
+      }
 
-                below.temperature_c100 =
-                    source.temperature_c100;
+      /*
+          Spread left.
+      */
 
-                continue;
-            }
+      if (x > 1) {
+        Tile &left = currentRoom.tiles[y][x - 1];
 
+        if (left.material == MAT_EMPTY) {
+          uint32_t amount = std::min(source.mass_g, (uint32_t)25);
 
-            /*
-                Spread left.
-            */
+          source.mass_g -= amount;
 
-            if (x > 1)
-            {
-                Tile& left =
-                    currentRoom.tiles[y][x - 1];
+          left.material = MAT_WATER;
 
-                if (left.material ==
-                    MAT_EMPTY)
-                {
-                    uint32_t amount =
-                        std::min(
-                            source.mass_g,
-                            (uint32_t)25
-                        );
+          left.mass_g += amount;
 
-                    source.mass_g -= amount;
-
-                    left.material =
-                        MAT_WATER;
-
-                    left.mass_g += amount;
-
-                    left.temperature_c100 =
-                        source.temperature_c100;
-                }
-            }
-
-
-            /*
-                Spread right.
-            */
-
-            if (x < ROOM_W - 2)
-            {
-                Tile& right =
-                    currentRoom.tiles[y][x + 1];
-
-                if (right.material ==
-                    MAT_EMPTY)
-                {
-                    uint32_t amount =
-                        std::min(
-                            source.mass_g,
-                            (uint32_t)25
-                        );
-
-                    source.mass_g -= amount;
-
-                    right.material =
-                        MAT_WATER;
-
-                    right.mass_g += amount;
-
-                    right.temperature_c100 =
-                        source.temperature_c100;
-                }
-            }
+          left.temperature_c100 = source.temperature_c100;
         }
-    }
-}
+      }
 
+      /*
+          Spread right.
+      */
+
+      if (x < ROOM_W - 2) {
+        Tile &right = currentRoom.tiles[y][x + 1];
+
+        if (right.material == MAT_EMPTY) {
+          uint32_t amount = std::min(source.mass_g, (uint32_t)25);
+
+          source.mass_g -= amount;
+
+          right.material = MAT_WATER;
+
+          right.mass_g += amount;
+
+          right.temperature_c100 = source.temperature_c100;
+        }
+      }
+    }
+  }
+}
 
 // ============================================================
 // ELECTRICITY
 // ============================================================
 
-static void simulateElectricity()
-{
-    for (uint8_t y = 0;
-        y < ROOM_H;
-        y++)
-    {
-        for (uint8_t x = 0;
-            x < ROOM_W;
-            x++)
-        {
-            Electrical& e =
-                currentRoom.tiles[y][x]
-                .electricity;
+static void simulateElectricity() {
+  for (uint8_t y = 0; y < ROOM_H; y++) {
+    for (uint8_t x = 0; x < ROOM_W; x++) {
+      Electrical &e = currentRoom.tiles[y][x].electricity;
 
-            if (!e.enabled)
-                continue;
+      if (!e.enabled)
+        continue;
 
-            if (e.resistance_mOhm == 0)
-                continue;
+      if (e.resistance_mOhm == 0)
+        continue;
 
+      /*
+          I = V / R
 
-            /*
-                I = V / R
+          mA = mV / ohms
 
-                mA = mV / ohms
+          Since resistance is stored
+          in milliohms:
 
-                Since resistance is stored
-                in milliohms:
+              mA =
+                  mV * 1000 / mOhm
+      */
 
-                    mA =
-                        mV * 1000 / mOhm
-            */
+      e.current_mA =
+          (static_cast<uint32_t>(e.voltage_mV) * 1000) / e.resistance_mOhm;
 
-            e.current_mA =
-                (
-                    static_cast<uint32_t>(
-                        e.voltage_mV
-                        ) * 1000
-                    ) /
-                e.resistance_mOhm;
+      /*
+          P = V * I
 
+          mW =
+              mV * mA / 1000
+      */
 
-            /*
-                P = V * I
+      e.power_mW = (static_cast<uint32_t>(e.voltage_mV) * e.current_mA) / 1000;
 
-                mW =
-                    mV * mA / 1000
-            */
+      /*
+          Convert electrical power into heat.
 
-            e.power_mW =
-                (
-                    static_cast<uint32_t>(
-                        e.voltage_mV
-                        ) *
-                    e.current_mA
-                    ) / 1000;
+          The rate is exaggerated for gameplay, but it is finite: the
+          temperature solver relaxes every tile toward ambient, so a
+          circuit settles at a steady temperature instead of running away.
+      */
 
-
-            /*
-                Convert electrical power into heat.
-
-                The rate is exaggerated for gameplay, but it is finite: the
-                temperature solver relaxes every tile toward ambient, so a
-                circuit settles at a steady temperature instead of running away.
-            */
-
-            currentRoom.tiles[y][x]
-                .temperature_c100 +=
-                e.power_mW / ELECTRICAL_HEAT_DIV;
-        }
+      currentRoom.tiles[y][x].temperature_c100 +=
+          e.power_mW / ELECTRICAL_HEAT_DIV;
     }
+  }
 }
-
 
 // ============================================================
 // TEMPERATURE
@@ -1442,269 +1149,191 @@ static void simulateElectricity()
     sane range so a stuck source cannot overflow the temperature field.
 */
 
-static void simulateTemperature()
-{
-    static int32_t before[ROOM_H][ROOM_W];
+static void simulateTemperature() {
+  static int32_t before[ROOM_H][ROOM_W];
 
-    /*
-        The hull leaks toward the room's ambient, not a global constant, so a
-        hot room stays hot and a cold room stays cold.
-    */
+  /*
+      The hull leaks toward the room's ambient, not a global constant, so a
+      hot room stays hot and a cold room stays cold.
+  */
 
-    int32_t ambient =
-        currentRoom.header.ambient_c100;
+  int32_t ambient = currentRoom.header.ambient_c100;
 
-    if (ambient == 0)
-        ambient = NORMAL_AMBIENT_C100;
+  if (ambient == 0)
+    ambient = NORMAL_AMBIENT_C100;
 
-    for (uint8_t y = 0; y < ROOM_H; y++)
-    {
-        for (uint8_t x = 0; x < ROOM_W; x++)
-        {
-            before[y][x] =
-                currentRoom.tiles[y][x].temperature_c100;
-        }
+  for (uint8_t y = 0; y < ROOM_H; y++) {
+    for (uint8_t x = 0; x < ROOM_W; x++) {
+      before[y][x] = currentRoom.tiles[y][x].temperature_c100;
     }
+  }
 
-    for (uint8_t y = 0; y < ROOM_H; y++)
-    {
-        for (uint8_t x = 0; x < ROOM_W; x++)
-        {
-            const int32_t self =
-                before[y][x];
+  for (uint8_t y = 0; y < ROOM_H; y++) {
+    for (uint8_t x = 0; x < ROOM_W; x++) {
+      const int32_t self = before[y][x];
 
-            int32_t value = self;
+      int32_t value = self;
 
+      if (x > 0) {
+        value += (before[y][x - 1] - self) / HEAT_CONDUCT_DIV;
+      }
 
-            if (x > 0)
-            {
-                value += (before[y][x - 1] - self) /
-                    HEAT_CONDUCT_DIV;
-            }
+      if (x + 1 < ROOM_W) {
+        value += (before[y][x + 1] - self) / HEAT_CONDUCT_DIV;
+      }
 
-            if (x + 1 < ROOM_W)
-            {
-                value += (before[y][x + 1] - self) /
-                    HEAT_CONDUCT_DIV;
-            }
+      if (y > 0) {
+        value += (before[y - 1][x] - self) / HEAT_CONDUCT_DIV;
+      }
 
-            if (y > 0)
-            {
-                value += (before[y - 1][x] - self) /
-                    HEAT_CONDUCT_DIV;
-            }
+      if (y + 1 < ROOM_H) {
+        value += (before[y + 1][x] - self) / HEAT_CONDUCT_DIV;
+      }
 
-            if (y + 1 < ROOM_H)
-            {
-                value += (before[y + 1][x] - self) /
-                    HEAT_CONDUCT_DIV;
-            }
+      value += (ambient - self) / HEAT_RELAX_DIV;
 
+      if (value < MIN_TEMPERATURE_C100)
+        value = MIN_TEMPERATURE_C100;
+      else if (value > MAX_TEMPERATURE_C100)
+        value = MAX_TEMPERATURE_C100;
 
-            value += (ambient - self) /
-                HEAT_RELAX_DIV;
-
-
-            if (value < MIN_TEMPERATURE_C100)
-                value = MIN_TEMPERATURE_C100;
-            else if (value > MAX_TEMPERATURE_C100)
-                value = MAX_TEMPERATURE_C100;
-
-
-            currentRoom.tiles[y][x].temperature_c100 =
-                value;
-        }
+      currentRoom.tiles[y][x].temperature_c100 = value;
     }
+  }
 }
-
 
 // ============================================================
 // PHASE CHANGES
 // ============================================================
 
-static void simulatePhaseChanges()
-{
-    for (uint8_t y = 0;
-        y < ROOM_H;
-        y++)
-    {
-        for (uint8_t x = 0;
-            x < ROOM_W;
-            x++)
-        {
-            Tile& t =
-                currentRoom.tiles[y][x];
+static void simulatePhaseChanges() {
+  for (uint8_t y = 0; y < ROOM_H; y++) {
+    for (uint8_t x = 0; x < ROOM_W; x++) {
+      Tile &t = currentRoom.tiles[y][x];
 
+      /*
+          WATER -> STEAM
+      */
 
-            /*
-                WATER -> STEAM
-            */
+      if (t.material == MAT_WATER && t.temperature_c100 >= 10000) {
+        /*
+            Convert 1% of water
+            into steam.
+        */
 
-            if (t.material ==
-                MAT_WATER &&
-                t.temperature_c100 >=
-                10000)
-            {
-                /*
-                    Convert 1% of water
-                    into steam.
-                */
+        uint32_t amount = std::max((uint32_t)1, (uint32_t)(t.mass_g / 100));
 
-                uint32_t amount =
-                    std::max(
-                        (uint32_t)1,
-                        (uint32_t)(t.mass_g / 100)
-                    );
+        t.mass_g -= amount;
 
-                t.mass_g -= amount;
+        t.gas.steam += amount;
 
-                t.gas.steam +=
-                    amount;
-
-                if (t.mass_g == 0)
-                {
-                    t.material =
-                        MAT_EMPTY;
-                }
-            }
-
-
-            /*
-                ICE -> WATER
-            */
-
-            if (t.material ==
-                MAT_ICE &&
-                t.temperature_c100 > 0)
-            {
-                t.material =
-                    MAT_WATER;
-            }
-
-
-            /*
-                WATER -> ICE
-            */
-
-            if (t.material ==
-                MAT_WATER &&
-                t.temperature_c100 < 0)
-            {
-                t.material =
-                    MAT_ICE;
-            }
+        if (t.mass_g == 0) {
+          t.material = MAT_EMPTY;
         }
-    }
-}
+      }
 
+      /*
+          ICE -> WATER
+      */
+
+      if (t.material == MAT_ICE && t.temperature_c100 > 0) {
+        t.material = MAT_WATER;
+      }
+
+      /*
+          WATER -> ICE
+      */
+
+      if (t.material == MAT_WATER && t.temperature_c100 < 0) {
+        t.material = MAT_ICE;
+      }
+    }
+  }
+}
 
 // ============================================================
 // LIFE SUPPORT
 // ============================================================
 
-static bool isHazardousTile(const Tile& tile)
-{
-    if (tile.electricity.enabled)
-        return true;
+static bool isHazardousTile(const Tile &tile) {
+  if (tile.electricity.enabled)
+    return true;
 
-    if (tile.temperature_c100 >= HOT_TEMPERATURE_C100)
-        return true;
+  if (tile.temperature_c100 >= HOT_TEMPERATURE_C100)
+    return true;
 
-    if (tile.temperature_c100 <= COLD_TEMPERATURE_C100)
-        return true;
+  if (tile.temperature_c100 <= COLD_TEMPERATURE_C100)
+    return true;
 
-    if (tile.gas.oxygen < LOW_OXYGEN)
-        return true;
+  if (tile.gas.oxygen < LOW_OXYGEN)
+    return true;
 
-    return false;
+  return false;
 }
-
 
 /*
     Bleed the personal O2 reserve for one turn. A hazard drains it faster and an
     empty reserve ends the run.
 */
 
-static void drainTank()
-{
-    const Tile& here =
-        currentRoom.tiles
-        [worldState.playerY]
-        [worldState.playerX];
+static void drainTank() {
+  const Tile &here = currentRoom.tiles[worldState.playerY][worldState.playerX];
 
-    const int drain =
-        isHazardousTile(here)
-        ? TANK_DRAIN_HAZARD
-        : TANK_DRAIN_IDLE;
+  const int drain = isHazardousTile(here) ? TANK_DRAIN_HAZARD : TANK_DRAIN_IDLE;
 
-    if (worldState.tank <= static_cast<uint16_t>(drain))
-    {
-        worldState.tank = 0;
-        worldState.outcome = OUTCOME_LOST;
-        return;
-    }
+  if (worldState.tank <= static_cast<uint16_t>(drain)) {
+    worldState.tank = 0;
+    worldState.outcome = OUTCOME_LOST;
+    return;
+  }
 
-    worldState.tank -= static_cast<uint16_t>(drain);
+  worldState.tank -= static_cast<uint16_t>(drain);
 }
-
 
 /*
     Run on the tile the player just entered: pick up a canister or reach the
     reactor.
 */
 
-static void enterTile()
-{
-    Tile& here =
-        currentRoom.tiles
-        [worldState.playerY]
-        [worldState.playerX];
+static void enterTile() {
+  Tile &here = currentRoom.tiles[worldState.playerY][worldState.playerX];
 
-    if (here.material == MAT_CANISTER)
-    {
-        worldState.tank = static_cast<uint16_t>(
-            std::min<int>(
-                TANK_MAX,
-                worldState.tank + TANK_CANISTER
-            )
-        );
+  if (here.material == MAT_CANISTER) {
+    worldState.tank = static_cast<uint16_t>(
+        std::min<int>(TANK_MAX, worldState.tank + TANK_CANISTER));
 
-        here.material = MAT_EMPTY;
-        here.mass_g = 0;
+    here.material = MAT_EMPTY;
+    here.mass_g = 0;
 
-        pm_bz_play_jingle(0);
-    }
+    pm_bz_play_jingle(0);
+  }
 
-    if (here.material == MAT_REACTOR)
-    {
-        worldState.outcome = OUTCOME_WON;
-    }
+  if (here.material == MAT_REACTOR) {
+    worldState.outcome = OUTCOME_WON;
+  }
 
-    requestRedraw();
+  requestRedraw();
 }
-
 
 // ============================================================
 // PHYSICS
 // ============================================================
 
-static void physicsStep()
-{
-    simulateElectricity();
+static void physicsStep() {
+  simulateElectricity();
 
-    simulateTemperature();
+  simulateTemperature();
 
-    simulatePhaseChanges();
+  simulatePhaseChanges();
 
-    simulateWater();
+  simulateWater();
 
-    simulateGas();
+  simulateGas();
 
-    currentRoom.header.simulationTick++;
+  currentRoom.header.simulationTick++;
 
-    worldState.globalTick++;
+  worldState.globalTick++;
 }
-
 
 // ============================================================
 // TURN
@@ -1712,23 +1341,21 @@ static void physicsStep()
 
 /*
     The game is turn-based so the panel only refreshes on a deliberate action.
-    Every action folds a few physics steps into one turn and then drains the suit
-    once, based on the tile the player ends the turn on.
+    Every action folds a few physics steps into one turn and then drains the
+   suit once, based on the tile the player ends the turn on.
 */
 
-static void advanceTurn()
-{
-    if (worldState.outcome != OUTCOME_RUNNING)
-        return;
+static void advanceTurn() {
+  if (worldState.outcome != OUTCOME_RUNNING)
+    return;
 
-    for (int i = 0; i < TURN_PHYSICS_TICKS; i++)
-        physicsStep();
+  for (int i = 0; i < TURN_PHYSICS_TICKS; i++)
+    physicsStep();
 
-    drainTank();
+  drainTank();
 
-    requestRedraw();
+  requestRedraw();
 }
-
 
 // ============================================================
 // TILE SYMBOL
@@ -1736,106 +1363,116 @@ static void advanceTurn()
 
 static constexpr uint16_t GAS_NOTICE = 300;
 
-static char tileSymbol(
-    const Tile& tile)
-{
-    if (tile.material == MAT_STONE)
-        return '#';
+static char tileSymbol(const Tile &tile) {
+  if (tile.material == MAT_STONE)
+    return '#';
 
-    if (tile.material == MAT_CANISTER)
-        return 'o';
+  if (tile.material == MAT_CANISTER)
+    return 'o';
 
-    if (tile.material == MAT_REACTOR)
-        return 'R';
+  if (tile.material == MAT_REACTOR)
+    return 'R';
 
-    if (tile.material == MAT_WOOD)
-        return 'W';
+  if (tile.material == MAT_WOOD)
+    return 'W';
 
-    if (tile.material == MAT_IRON)
-        return 'I';
+  if (tile.material == MAT_IRON)
+    return 'I';
 
-    if (tile.material == MAT_COPPER)
-        return 'C';
+  if (tile.material == MAT_COPPER)
+    return 'C';
 
-    if (tile.material == MAT_WATER)
-        return '~';
+  if (tile.material == MAT_WATER)
+    return '~';
 
-    if (tile.material == MAT_ICE)
-        return '*';
+  if (tile.material == MAT_ICE)
+    return '*';
 
+  /*
+      Hazard markers take precedence over the atmosphere symbol so the danger
+      is visible before the player steps onto it.
+  */
 
-    /*
-        Hazard markers take precedence over the atmosphere symbol so the danger
-        is visible before the player steps onto it.
-    */
+  if (tile.electricity.enabled)
+    return 'e';
 
-    if (tile.electricity.enabled)
-        return 'e';
+  if (tile.temperature_c100 >= HOT_TEMPERATURE_C100)
+    return '!';
 
-    if (tile.temperature_c100 >= HOT_TEMPERATURE_C100)
-        return '!';
+  if (tile.temperature_c100 <= COLD_TEMPERATURE_C100)
+    return 'x';
 
-    if (tile.temperature_c100 <= COLD_TEMPERATURE_C100)
-        return 'x';
+  if (tile.gas.oxygen < LOW_OXYGEN)
+    return 'x';
 
-    if (tile.gas.oxygen < LOW_OXYGEN)
-        return 'x';
+  /*
+      Floor reads as a plain dot unless a gas is clearly elevated, so the
+      normal oxygen/nitrogen atmosphere stays quiet and only real hazards get
+      a mark.
+  */
 
+  if (tile.gas.co2 > GAS_NOTICE)
+    return 'C';
 
-    /*
-        Floor reads as a plain dot unless a gas is clearly elevated, so the
-        normal oxygen/nitrogen atmosphere stays quiet and only real hazards get
-        a mark.
-    */
+  if (tile.gas.methane > GAS_NOTICE)
+    return 'M';
 
-    if (tile.gas.co2 > GAS_NOTICE)
-        return 'C';
+  if (tile.gas.steam > GAS_NOTICE)
+    return 'S';
 
-    if (tile.gas.methane > GAS_NOTICE)
-        return 'M';
+  if (tile.gas.hydrogen > GAS_NOTICE)
+    return 'H';
 
-    if (tile.gas.steam > GAS_NOTICE)
-        return 'S';
+  if (tile.gas.helium > GAS_NOTICE)
+    return 'h';
 
-    if (tile.gas.hydrogen > GAS_NOTICE)
-        return 'H';
-
-    if (tile.gas.helium > GAS_NOTICE)
-        return 'h';
-
-    return '.';
+  return '.';
 }
-
 
 // ============================================================
 // MATERIAL NAME
 // ============================================================
 
-static const char* materialName(uint8_t material)
-{
-    switch (material)
-    {
-    case MAT_EMPTY:    return "air";
-    case MAT_STONE:    return "stone";
-    case MAT_DIRT:     return "dirt";
-    case MAT_WOOD:     return "wood";
-    case MAT_IRON:     return "iron";
-    case MAT_COPPER:   return "copper";
-    case MAT_WATER:    return "water";
-    case MAT_ICE:      return "ice";
-    case MAT_OXYGEN:   return "oxygen";
-    case MAT_NITROGEN: return "nitrogen";
-    case MAT_CO2:      return "CO2";
-    case MAT_HYDROGEN: return "hydrogen";
-    case MAT_HELIUM:   return "helium";
-    case MAT_METHANE:  return "methane";
-    case MAT_STEAM:    return "steam";
-    case MAT_CANISTER: return "canister";
-    case MAT_REACTOR:  return "reactor";
-    default:           return "?";
-    }
+static const char *materialName(uint8_t material) {
+  switch (material) {
+  case MAT_EMPTY:
+    return "air";
+  case MAT_STONE:
+    return "stone";
+  case MAT_DIRT:
+    return "dirt";
+  case MAT_WOOD:
+    return "wood";
+  case MAT_IRON:
+    return "iron";
+  case MAT_COPPER:
+    return "copper";
+  case MAT_WATER:
+    return "water";
+  case MAT_ICE:
+    return "ice";
+  case MAT_OXYGEN:
+    return "oxygen";
+  case MAT_NITROGEN:
+    return "nitrogen";
+  case MAT_CO2:
+    return "CO2";
+  case MAT_HYDROGEN:
+    return "hydrogen";
+  case MAT_HELIUM:
+    return "helium";
+  case MAT_METHANE:
+    return "methane";
+  case MAT_STEAM:
+    return "steam";
+  case MAT_CANISTER:
+    return "canister";
+  case MAT_REACTOR:
+    return "reactor";
+  default:
+    return "?";
+  }
 }
-
 
 // ============================================================
 // E-INK DRAWING ADAPTER
@@ -1848,35 +1485,17 @@ static const char* materialName(uint8_t material)
     top-left-plus-size form used here.
 */
 
-static void PM_DrawRect(
-    int x,
-    int y,
-    int w,
-    int h,
-    bool filled)
-{
-    pm_eink_rect(
-        x,
-        y,
-        x + w - 1,
-        y + h - 1,
-        filled,
-        true
-    );
+static void PM_DrawRect(int x, int y, int w, int h, bool filled) {
+  pm_eink_rect(x, y, x + w - 1, y + h - 1, filled, true);
 }
 
-
-static void PM_DrawText(int x, int y, const char* text)
-{
-    pm_text(PM_TARGET_EINK, x, y, text, PM_STYLE_MONO);
+static void PM_DrawText(int x, int y, const char *text) {
+  pm_text(PM_TARGET_EINK, x, y, text, PM_STYLE_MONO);
 }
 
-
-static void PM_DrawTextTiny(int x, int y, const char* text)
-{
-    pm_text(PM_TARGET_EINK, x, y, text, PM_STYLE_TINY);
+static void PM_DrawTextTiny(int x, int y, const char *text) {
+  pm_text(PM_TARGET_EINK, x, y, text, PM_STYLE_TINY);
 }
-
 
 /*
     The OLED is 256x32. It carries a persistent four-line HUD: location and the
@@ -1884,873 +1503,575 @@ static void PM_DrawTextTiny(int x, int y, const char* text)
     the quick-glance readout; the e-ink column carries the detail.
 */
 
-static int roomDistance()
-{
-    int dx =
-        worldState.roomX - REACTOR_ROOM_X;
+static int roomDistance() {
+  int dx = worldState.roomX - REACTOR_ROOM_X;
 
-    int dy =
-        worldState.roomY - REACTOR_ROOM_Y;
+  int dy = worldState.roomY - REACTOR_ROOM_Y;
 
-    if (dx < 0)
-        dx = -dx;
+  if (dx < 0)
+    dx = -dx;
 
-    if (dy < 0)
-        dy = -dy;
+  if (dy < 0)
+    dy = -dy;
 
-    return dx + dy;
+  return dx + dy;
 }
 
+static void drawOledHud() {
+  pm_text_color(PM_TARGET_OLED, 1);
 
-static void drawOledHud()
-{
-    pm_text_color(PM_TARGET_OLED, 1);
+  /*
+      oledWord with an empty word clears and commits the framebuffer; no
+      bare OLED clear primitive is exported.
+  */
 
-    /*
-        oledWord with an empty word clears and commits the framebuffer; no
-        bare OLED clear primitive is exported.
-    */
+  pm_oled_oled_word("", false, false, "");
 
-    pm_oled_oled_word("", false, false, "");
+  char line[64];
 
-    char line[64];
+  snprintf(line, sizeof(line), "DERELICT  R%d,%d  REACTOR %d", worldState.roomX,
+           worldState.roomY, roomDistance());
 
-    snprintf(
-        line,
-        sizeof(line),
-        "DERELICT  R%d,%d  REACTOR %d",
-        worldState.roomX,
-        worldState.roomY,
-        roomDistance()
-    );
+  pm_text(PM_TARGET_OLED, 2, 6, line, PM_STYLE_TINY);
 
-    pm_text(PM_TARGET_OLED, 2, 6, line, PM_STYLE_TINY);
+  const Tile &playerTile =
+      currentRoom.tiles[worldState.playerY][worldState.playerX];
 
+  const int32_t t100 = playerTile.temperature_c100;
 
-    const Tile& playerTile =
-        currentRoom
-            .tiles
-            [worldState.playerY]
-            [worldState.playerX];
+  const int32_t magnitude = t100 < 0 ? -t100 : t100;
 
-    const int32_t t100 =
-        playerTile.temperature_c100;
+  snprintf(line, sizeof(line), "TANK %u%%  O2 %u  T %s%d.%dC", worldState.tank,
+           playerTile.gas.oxygen, t100 < 0 ? "-" : "",
+           static_cast<int>(magnitude / 100),
+           static_cast<int>((magnitude % 100) / 10));
 
-    const int32_t magnitude =
-        t100 < 0 ? -t100 : t100;
+  pm_text(PM_TARGET_OLED, 2, 13, line, PM_STYLE_TINY);
 
-    snprintf(
-        line,
-        sizeof(line),
-        "TANK %u%%  O2 %u  T %s%d.%dC",
-        worldState.tank,
-        playerTile.gas.oxygen,
-        t100 < 0 ? "-" : "",
-        static_cast<int>(magnitude / 100),
-        static_cast<int>((magnitude % 100) / 10)
-    );
+  if (worldState.outcome == OUTCOME_WON) {
+    pm_text(PM_TARGET_OLED, 2, 20, "REACTOR RESTARTED!", PM_STYLE_TINY);
+  } else if (worldState.outcome == OUTCOME_LOST) {
+    pm_text(PM_TARGET_OLED, 2, 20, "SUIT FAILURE - O2 OUT", PM_STYLE_TINY);
+  } else if (isHazardousTile(playerTile)) {
+    pm_text(PM_TARGET_OLED, 2, 20, "!! HAZARD  TANK DRAINING", PM_STYLE_TINY);
+  } else {
+    pm_text(PM_TARGET_OLED, 2, 20, "WASD move  SPACE wait  H help",
+            PM_STYLE_TINY);
+  }
 
-    pm_text(PM_TARGET_OLED, 2, 13, line, PM_STYLE_TINY);
+  pm_text(PM_TARGET_OLED, 2, 27, "N new run  Q save  ESC quit", PM_STYLE_TINY);
 
-
-    if (worldState.outcome == OUTCOME_WON)
-    {
-        pm_text(
-            PM_TARGET_OLED,
-            2,
-            20,
-            "REACTOR RESTARTED!",
-            PM_STYLE_TINY
-        );
-    }
-    else if (worldState.outcome == OUTCOME_LOST)
-    {
-        pm_text(
-            PM_TARGET_OLED,
-            2,
-            20,
-            "SUIT FAILURE - O2 OUT",
-            PM_STYLE_TINY
-        );
-    }
-    else if (isHazardousTile(playerTile))
-    {
-        pm_text(
-            PM_TARGET_OLED,
-            2,
-            20,
-            "!! HAZARD  TANK DRAINING",
-            PM_STYLE_TINY
-        );
-    }
-    else
-    {
-        pm_text(
-            PM_TARGET_OLED,
-            2,
-            20,
-            "WASD move  SPACE wait  H help",
-            PM_STYLE_TINY
-        );
-    }
-
-
-    pm_text(
-        PM_TARGET_OLED,
-        2,
-        27,
-        "N new run  Q save  ESC quit",
-        PM_STYLE_TINY
-    );
-
-    pm_oled_send();
+  pm_oled_send();
 }
-
 
 // ============================================================
 // DRAW ROOM
 // ============================================================
 
-static void drawRoom()
-{
-    /*
-        Clear display and draw text as black ink; the e-ink default foreground is
-        white, which is invisible on the white panel.
-    */
+static void drawRoom() {
+  /*
+      Clear display and draw text as black ink; the e-ink default foreground is
+      white, which is invisible on the white panel.
+  */
 
-    pm_eink_clear();
+  pm_eink_clear();
 
-    pm_text_color(PM_TARGET_EINK, 0);
+  pm_text_color(PM_TARGET_EINK, 0);
 
+  /*
+      Draw 8x8 map.
+  */
 
-    /*
-        Draw 8x8 map.
-    */
+  for (uint8_t y = 0; y < ROOM_H; y++) {
+    for (uint8_t x = 0; x < ROOM_W; x++) {
+      const Tile &tile = currentRoom.tiles[y][x];
 
-    for (uint8_t y = 0;
-        y < ROOM_H;
-        y++)
-    {
-        for (uint8_t x = 0;
-            x < ROOM_W;
-            x++)
-        {
-            const Tile& tile =
-                currentRoom.tiles[y][x];
+      int px = MAP_X + x * TILE_PIXELS;
 
+      int py = MAP_Y + y * TILE_PIXELS;
 
-            int px =
-                MAP_X +
-                x * TILE_PIXELS;
+      /*
+          Draw tile outline.
+      */
 
-            int py =
-                MAP_Y +
-                y * TILE_PIXELS;
+      PM_DrawRect(px, py, TILE_PIXELS, TILE_PIXELS, false);
 
+      /*
+          Draw solid tiles.
+      */
 
-            /*
-                Draw tile outline.
-            */
+      if (tile.material == MAT_STONE) {
+        PM_DrawRect(px + 2, py + 2, TILE_PIXELS - 4, TILE_PIXELS - 4, true);
+      } else {
+        /*
+            Gas/liquid symbol.
+        */
 
-            PM_DrawRect(
-                px,
-                py,
-                TILE_PIXELS,
-                TILE_PIXELS,
-                false
-            );
+        char symbol[2] = {tileSymbol(tile), '\0'};
 
+        const int symbolWidth =
+            pm_text_width(PM_TARGET_EINK, symbol, PM_STYLE_MONO);
 
-            /*
-                Draw solid tiles.
-            */
-
-            if (tile.material ==
-                MAT_STONE)
-            {
-                PM_DrawRect(
-                    px + 2,
-                    py + 2,
-                    TILE_PIXELS - 4,
-                    TILE_PIXELS - 4,
-                    true
-                );
-            }
-            else
-            {
-                /*
-                    Gas/liquid symbol.
-                */
-
-                char symbol[2] = { tileSymbol(tile), '\0' };
-
-                const int symbolWidth =
-                    pm_text_width(
-                        PM_TARGET_EINK,
-                        symbol,
-                        PM_STYLE_MONO
-                    );
-
-                PM_DrawText(
-                    px + (TILE_PIXELS - symbolWidth) / 2,
-                    py + 19,
-                    symbol
-                );
-            }
-        }
+        PM_DrawText(px + (TILE_PIXELS - symbolWidth) / 2, py + 19, symbol);
+      }
     }
+  }
 
+  /*
+      Player.
+  */
 
-    /*
-        Player.
-    */
+  int playerPX = MAP_X + worldState.playerX * TILE_PIXELS;
 
-    int playerPX =
-        MAP_X +
-        worldState.playerX *
-        TILE_PIXELS;
+  int playerPY = MAP_Y + worldState.playerY * TILE_PIXELS;
 
-    int playerPY =
-        MAP_Y +
-        worldState.playerY *
-        TILE_PIXELS;
+  PM_DrawRect(playerPX + (TILE_PIXELS - 16) / 2,
+              playerPY + (TILE_PIXELS - 16) / 2, 16, 16, true);
 
+  /*
+      Readout column, to the right of the map.
+  */
 
-    PM_DrawRect(
-        playerPX + (TILE_PIXELS - 16) / 2,
-        playerPY + (TILE_PIXELS - 16) / 2,
-        16,
-        16,
-        true
-    );
+  PM_DrawRect(MAP_WIDTH + 2, 0, 1, MAP_HEIGHT, true);
 
+  const Tile &playerTile =
+      currentRoom.tiles[worldState.playerY][worldState.playerX];
 
-    /*
-        Readout column, to the right of the map.
-    */
+  char status[48];
 
-    PM_DrawRect(
-        MAP_WIDTH + 2,
-        0,
-        1,
-        MAP_HEIGHT,
-        true
-    );
+  int infoY = INFO_Y;
 
+  PM_DrawText(INFO_X, infoY, "DERELICT");
+  infoY += INFO_LINE;
 
-    const Tile& playerTile =
-        currentRoom
-            .tiles
-            [worldState.playerY]
-            [worldState.playerX];
+  snprintf(status, sizeof(status), "R %d,%d", worldState.roomX,
+           worldState.roomY);
 
-    char status[48];
+  PM_DrawText(INFO_X, infoY, status);
+  infoY += INFO_LINE;
 
-    int infoY = INFO_Y;
+  snprintf(status, sizeof(status), "POS %u,%u", worldState.playerX,
+           worldState.playerY);
 
-    PM_DrawText(INFO_X, infoY, "DERELICT");
-    infoY += INFO_LINE;
+  PM_DrawText(INFO_X, infoY, status);
+  infoY += INFO_LINE;
 
+  snprintf(status, sizeof(status), "REACTOR %d", roomDistance());
 
-    snprintf(
-        status,
-        sizeof(status),
-        "R %d,%d",
-        worldState.roomX,
-        worldState.roomY
-    );
+  PM_DrawText(INFO_X, infoY, status);
+  infoY += INFO_LINE;
+
+  snprintf(status, sizeof(status), "TANK %u%%", worldState.tank);
+
+  PM_DrawText(INFO_X, infoY, status);
+  infoY += INFO_LINE;
+
+  snprintf(status, sizeof(status), "O2 %u", playerTile.gas.oxygen);
+
+  PM_DrawText(INFO_X, infoY, status);
+  infoY += INFO_LINE;
+
+  {
+    const int32_t t100 = playerTile.temperature_c100;
+
+    const int32_t magnitude = t100 < 0 ? -t100 : t100;
+
+    snprintf(status, sizeof(status), "T %s%d.%dC", t100 < 0 ? "-" : "",
+             static_cast<int>(magnitude / 100),
+             static_cast<int>((magnitude % 100) / 10));
 
     PM_DrawText(INFO_X, infoY, status);
     infoY += INFO_LINE;
+  }
 
+  snprintf(status, sizeof(status), "P %umW", playerTile.electricity.power_mW);
 
-    snprintf(
-        status,
-        sizeof(status),
-        "POS %u,%u",
-        worldState.playerX,
-        worldState.playerY
-    );
+  PM_DrawText(INFO_X, infoY, status);
+  infoY += INFO_LINE;
 
-    PM_DrawText(INFO_X, infoY, status);
-    infoY += INFO_LINE;
+  PM_DrawText(INFO_X, infoY, materialName(playerTile.material));
 
+  /*
+      26 px legend band along the bottom, matching the OS status band height.
+  */
 
-    snprintf(
-        status,
-        sizeof(status),
-        "REACTOR %d",
-        roomDistance()
-    );
+  PM_DrawRect(0, STATUS_Y, PANEL_WIDTH, 1, true);
 
-    PM_DrawText(INFO_X, infoY, status);
-    infoY += INFO_LINE;
+  PM_DrawTextTiny(2, STATUS_Y + 9, "WASD move  SPACE wait  H help  ESC quit");
 
+  if (worldState.outcome == OUTCOME_WON) {
+    PM_DrawTextTiny(2, STATUS_Y + 21, "REACTOR RESTARTED  -  you made it out");
+  } else if (worldState.outcome == OUTCOME_LOST) {
+    PM_DrawTextTiny(2, STATUS_Y + 21, "SUIT FAILURE  -  O2 depleted");
+  } else if (isHazardousTile(playerTile)) {
+    PM_DrawTextTiny(2, STATUS_Y + 21, "!! HAZARD  -  tank draining");
+  } else {
+    PM_DrawTextTiny(2, STATUS_Y + 21, "N new run    Q save");
+  }
 
-    snprintf(
-        status,
-        sizeof(status),
-        "TANK %u%%",
-        worldState.tank
-    );
+  drawOledHud();
 
-    PM_DrawText(INFO_X, infoY, status);
-    infoY += INFO_LINE;
+  /*
+      Push the frame to the panel. The render wrapper only reaches here when
+      the visible frame changed, so no throttle is needed.
+  */
 
-
-    snprintf(
-        status,
-        sizeof(status),
-        "O2 %u",
-        playerTile.gas.oxygen
-    );
-
-    PM_DrawText(INFO_X, infoY, status);
-    infoY += INFO_LINE;
-
-
-    {
-        const int32_t t100 =
-            playerTile.temperature_c100;
-
-        const int32_t magnitude =
-            t100 < 0 ? -t100 : t100;
-
-        snprintf(
-            status,
-            sizeof(status),
-            "T %s%d.%dC",
-            t100 < 0 ? "-" : "",
-            static_cast<int>(magnitude / 100),
-            static_cast<int>((magnitude % 100) / 10)
-        );
-
-        PM_DrawText(INFO_X, infoY, status);
-        infoY += INFO_LINE;
-    }
-
-
-    snprintf(
-        status,
-        sizeof(status),
-        "P %umW",
-        playerTile.electricity.power_mW
-    );
-
-    PM_DrawText(INFO_X, infoY, status);
-    infoY += INFO_LINE;
-
-
-    PM_DrawText(
-        INFO_X,
-        infoY,
-        materialName(playerTile.material)
-    );
-
-
-    /*
-        26 px legend band along the bottom, matching the OS status band height.
-    */
-
-    PM_DrawRect(
-        0,
-        STATUS_Y,
-        PANEL_WIDTH,
-        1,
-        true
-    );
-
-
-    PM_DrawTextTiny(
-        2,
-        STATUS_Y + 9,
-        "WASD move  SPACE wait  H help  ESC quit"
-    );
-
-
-    if (worldState.outcome == OUTCOME_WON)
-    {
-        PM_DrawTextTiny(2, STATUS_Y + 21, "REACTOR RESTARTED  -  you made it out");
-    }
-    else if (worldState.outcome == OUTCOME_LOST)
-    {
-        PM_DrawTextTiny(2, STATUS_Y + 21, "SUIT FAILURE  -  O2 depleted");
-    }
-    else if (isHazardousTile(playerTile))
-    {
-        PM_DrawTextTiny(2, STATUS_Y + 21, "!! HAZARD  -  tank draining");
-    }
-    else
-    {
-        PM_DrawTextTiny(2, STATUS_Y + 21, "N new run    Q save");
-    }
-
-
-    drawOledHud();
-
-
-    /*
-        Push the frame to the panel. The render wrapper only reaches here when
-        the visible frame changed, so no throttle is needed.
-    */
-
-    pm_eink_refresh();
+  pm_eink_refresh();
 }
-
 
 // ============================================================
 // BRIEFING
 // ============================================================
 
-static void PM_CenterText(int y, const char* text, int style)
-{
-    const int w =
-        pm_text_width(PM_TARGET_EINK, text, style);
+static void PM_CenterText(int y, const char *text, int style) {
+  const int w = pm_text_width(PM_TARGET_EINK, text, style);
 
-    pm_text(
-        PM_TARGET_EINK,
-        (PANEL_WIDTH - w) / 2,
-        y,
-        text,
-        style
-    );
+  pm_text(PM_TARGET_EINK, (PANEL_WIDTH - w) / 2, y, text, style);
 }
-
 
 /*
     The launch briefing. It states the premise, the goal and every control so a
     player who has never seen the app knows what to do.
 */
 
-static void drawIntro()
-{
-    pm_eink_clear();
+static void drawIntro() {
+  pm_eink_clear();
 
-    pm_text_color(PM_TARGET_EINK, 0);
+  pm_text_color(PM_TARGET_EINK, 0);
 
-    PM_CenterText(34, "DERELICT DESCENT", PM_STYLE_HEADING3);
+  PM_CenterText(34, "DERELICT DESCENT", PM_STYLE_HEADING3);
 
-    pm_eink_rect(70, 42, PANEL_WIDTH - 70, 42, true, true);
+  pm_eink_rect(70, 42, PANEL_WIDTH - 70, 42, true, true);
 
-    PM_CenterText(64, "Your ship's reactor is dead and", PM_STYLE_BODY);
-    PM_CenterText(80, "the air is going with it.", PM_STYLE_BODY);
+  PM_CenterText(64, "Your ship's reactor is dead and", PM_STYLE_BODY);
+  PM_CenterText(80, "the air is going with it.", PM_STYLE_BODY);
 
-    PM_CenterText(104, "Reach the reactor (R) and restart", PM_STYLE_BODY);
-    PM_CenterText(120, "it before your suit O2 hits zero.", PM_STYLE_BODY);
+  PM_CenterText(104, "Reach the reactor (R) and restart", PM_STYLE_BODY);
+  PM_CenterText(120, "it before your suit O2 hits zero.", PM_STYLE_BODY);
 
-    PM_CenterText(146, "WASD move    SPACE wait    H help", PM_STYLE_TINY);
-    PM_CenterText(158, "N new run    Q save    ESC quit", PM_STYLE_TINY);
+  PM_CenterText(146, "WASD move    SPACE wait    H help", PM_STYLE_TINY);
+  PM_CenterText(158, "N new run    Q save    ESC quit", PM_STYLE_TINY);
 
-    PM_CenterText(180, "R reactor   o O2 canister   # wall", PM_STYLE_TINY);
-    PM_CenterText(192, "! hot   x cold   e wire   ~ water", PM_STYLE_TINY);
+  PM_CenterText(180, "R reactor   o O2 canister   # wall", PM_STYLE_TINY);
+  PM_CenterText(192, "! hot   x cold   e wire   ~ water", PM_STYLE_TINY);
 
-    PM_CenterText(214, ". floor   C toxic gas   S steam", PM_STYLE_TINY);
+  PM_CenterText(214, ". floor   C toxic gas   S steam", PM_STYLE_TINY);
 
-    PM_CenterText(238, "PRESS ANY KEY", PM_STYLE_CAPTION);
+  PM_CenterText(238, "PRESS ANY KEY", PM_STYLE_CAPTION);
 
-    pm_eink_refresh();
+  pm_eink_refresh();
 
-    pm_oled_oled_word("DERELICT", true, false, "press any key");
+  pm_oled_oled_word("DERELICT", true, false, "press any key");
 }
-
 
 // ============================================================
 // RENDER GATE
 // ============================================================
 
-static uint32_t mixSignature(uint32_t h, uint32_t v)
-{
-    h ^= v;
+static uint32_t mixSignature(uint32_t h, uint32_t v) {
+  h ^= v;
 
-    h *= 16777619u;
+  h *= 16777619u;
 
-    return h;
+  return h;
 }
-
 
 /*
     Hash of everything the screens actually show. A turn that only nudges hidden
     simulation state leaves this unchanged, so no refresh is issued.
 */
 
-static uint32_t frameSignature()
-{
-    uint32_t h = 2166136261u;
+static uint32_t frameSignature() {
+  uint32_t h = 2166136261u;
 
-    for (uint8_t y = 0; y < ROOM_H; y++)
-    {
-        for (uint8_t x = 0; x < ROOM_W; x++)
-        {
-            h = mixSignature(
-                h,
-                static_cast<uint8_t>(
-                    tileSymbol(currentRoom.tiles[y][x])
-                )
-            );
-        }
+  for (uint8_t y = 0; y < ROOM_H; y++) {
+    for (uint8_t x = 0; x < ROOM_W; x++) {
+      h = mixSignature(
+          h, static_cast<uint8_t>(tileSymbol(currentRoom.tiles[y][x])));
     }
+  }
 
-    h = mixSignature(h, worldState.playerX);
-    h = mixSignature(h, worldState.playerY);
-    h = mixSignature(h, static_cast<uint16_t>(worldState.roomX));
-    h = mixSignature(h, static_cast<uint16_t>(worldState.roomY));
-    h = mixSignature(h, worldState.tank);
-    h = mixSignature(h, worldState.outcome);
-    h = mixSignature(h, static_cast<uint32_t>(roomDistance()));
+  h = mixSignature(h, worldState.playerX);
+  h = mixSignature(h, worldState.playerY);
+  h = mixSignature(h, static_cast<uint16_t>(worldState.roomX));
+  h = mixSignature(h, static_cast<uint16_t>(worldState.roomY));
+  h = mixSignature(h, worldState.tank);
+  h = mixSignature(h, worldState.outcome);
+  h = mixSignature(h, static_cast<uint32_t>(roomDistance()));
 
-    const Tile& playerTile =
-        currentRoom.tiles
-        [worldState.playerY]
-        [worldState.playerX];
+  const Tile &playerTile =
+      currentRoom.tiles[worldState.playerY][worldState.playerX];
 
-    h = mixSignature(h, playerTile.gas.oxygen);
-    h = mixSignature(h, playerTile.electricity.power_mW);
-    h = mixSignature(
-        h,
-        static_cast<uint32_t>(playerTile.temperature_c100 + 5000)
-    );
-    h = mixSignature(h, playerTile.material);
+  h = mixSignature(h, playerTile.gas.oxygen);
+  h = mixSignature(h, playerTile.electricity.power_mW);
+  h = mixSignature(h,
+                   static_cast<uint32_t>(playerTile.temperature_c100 + 5000));
+  h = mixSignature(h, playerTile.material);
 
-    return h;
+  return h;
 }
-
 
 /*
     Draw only when the visible frame changes. This is the single point that
     decides whether the e-ink panel and the OLED are touched.
 */
 
-static void renderFrame()
-{
-    const uint32_t signature =
-        showIntro ? 0x1DEA0001u : frameSignature();
+static void renderFrame() {
+  const uint32_t signature = showIntro ? 0x1DEA0001u : frameSignature();
 
-    if (frameDrawn && signature == lastFrameSignature)
-    {
-        redrawRequested = false;
-
-        return;
-    }
-
-    lastFrameSignature = signature;
-
-    frameDrawn = true;
-
+  if (frameDrawn && signature == lastFrameSignature) {
     redrawRequested = false;
 
-    if (showIntro)
-        drawIntro();
-    else
-        drawRoom();
-}
+    return;
+  }
 
+  lastFrameSignature = signature;
+
+  frameDrawn = true;
+
+  redrawRequested = false;
+
+  if (showIntro)
+    drawIntro();
+  else
+    drawRoom();
+}
 
 // ============================================================
 // KEYBOARD
 // ============================================================
 
-static void handleGameKey(
-    char key)
-{
-    switch (key)
-    {
-        /*
-            Movement.
-        */
+static void handleGameKey(char key) {
+  switch (key) {
+    /*
+        Movement.
+    */
 
-    case 'w':
-    case 'W':
-        movePlayer(0, -1);
-        break;
+  case 'w':
+  case 'W':
+    movePlayer(0, -1);
+    break;
 
+  case 's':
+  case 'S':
+    movePlayer(0, 1);
+    break;
 
-    case 's':
-    case 'S':
-        movePlayer(0, 1);
-        break;
+  case 'a':
+  case 'A':
+    movePlayer(-1, 0);
+    break;
 
+  case 'd':
+  case 'D':
+    movePlayer(1, 0);
+    break;
 
-    case 'a':
-    case 'A':
-        movePlayer(-1, 0);
-        break;
+    /*
+        Wait one turn: time passes, nothing moves.
+    */
 
-
-    case 'd':
-    case 'D':
-        movePlayer(1, 0);
-        break;
-
-
-        /*
-            Wait one turn: time passes, nothing moves.
-        */
-
-    case ' ':
-        advanceTurn();
-        break;
-
+  case ' ':
+    advanceTurn();
+    break;
 
     /*
         Show the briefing again.
     */
 
-    case 'h':
-    case 'H':
-    case '?':
+  case 'h':
+  case 'H':
+  case '?':
 
-        showIntro = true;
-        requestRedraw();
+    showIntro = true;
+    requestRedraw();
 
-        break;
-
-
-        /*
-            Save current room.
-        */
-
-    case 'q':
-    case 'Q':
-
-        saveRoom(currentRoom);
-        saveWorld();
-
-        pm_oled_sysmsg(
-            "GAME SAVED",
-            1000
-        );
-
-        break;
-
-
-        /*
-            Restart the run.
-        */
-
-    case 'n':
-    case 'N':
-
-        newRun();
-
-        break;
-
-
-        /*
-            Add water.
-        */
-
-    case 'l':
-    case 'L':
-    {
-        Tile& t =
-            currentRoom.tiles
-            [worldState.playerY]
-            [worldState.playerX];
-
-        if (t.material ==
-            MAT_EMPTY)
-        {
-            t.material =
-                MAT_WATER;
-
-            t.mass_g =
-                1000;
-        }
-
-        requestRedraw();
-
-        break;
-    }
-
+    break;
 
     /*
-        Add oxygen.
+        Save current room.
     */
 
-    case 'g':
-    case 'G':
-    {
-        Tile& t =
-            currentRoom.tiles
-            [worldState.playerY]
-            [worldState.playerX];
-
-        t.gas.oxygen += 100;
-
-        requestRedraw();
-
-        break;
-    }
-
-
-    /*
-        Add heat.
-    */
-
-    case 't':
-    case 'T':
-    {
-        Tile& t =
-            currentRoom.tiles
-            [worldState.playerY]
-            [worldState.playerX];
-
-        t.temperature_c100 +=
-            5000;
-
-        requestRedraw();
-
-        break;
-    }
-
-
-    /*
-        Toggle electricity.
-    */
-
-    case 'e':
-    case 'E':
-    {
-        Tile& t =
-            currentRoom.tiles
-            [worldState.playerY]
-            [worldState.playerX];
-
-        t.electricity.enabled =
-            !t.electricity.enabled;
-
-        t.electricity.voltage_mV =
-            12000;
-
-        t.electricity.resistance_mOhm =
-            6000;
-
-        requestRedraw();
-
-        break;
-    }
-
-
-    default:
-        break;
-    }
-}
-
-
-// ============================================================
-// ENTRY POINT
-// ============================================================
-
-extern "C" int main(int argc, char** argv)
-{
-    const char* appName =
-        argc > 0 && argv[0] ? argv[0] : "Derelict Descent";
-
-    const char* elfPath =
-        argc > 1 ? argv[1] : "";
-
-    printf(
-        "pocketmage app starting: %s (%s)\n",
-        appName,
-        elfPath
-    );
-
-    if (pm_app_abi() != PM_APP_API_ABI)
-    {
-        printf(
-            "host ABI mismatch: app %u, host %u; this build is stale\n",
-            PM_APP_API_ABI,
-            static_cast<unsigned>(pm_app_abi())
-        );
-
-        pm_oled_sysmsg("SDK ABI mismatch", 2000);
-
-        return 1;
-    }
-
-    printf(
-        "built against sdk %s, host reports %s\n",
-        PM_SDK_VERSION,
-        pm_host_sdk_version()
-    );
-
-    pm_bz_play_jingle(0);
-
-    initializeWorld();
-
-    bool running = true;
-
-    /*
-        Track the first frame on which the run ends so the outcome can be shown
-        briefly before the app exits.
-    */
-
-    uint8_t announcedOutcome = OUTCOME_RUNNING;
-
-    uint32_t outcomeMillis = 0;
-
-    while (running)
-    {
-        pm_kb_check_usbkb();
-
-        const char key = pm_kb_read();
-
-        if (key == K_EXIT_KEY || key == K_ESC_KEY)
-        {
-            running = false;
-        }
-        else if (key != 0 && pm_kb_accept_key())
-        {
-            if (showIntro)
-            {
-                showIntro = false;
-
-                requestRedraw();
-            }
-            else
-            {
-                handleGameKey(key);
-            }
-        }
-
-        const uint32_t now = nowMillis();
-
-        if (worldState.outcome != OUTCOME_RUNNING &&
-            announcedOutcome == OUTCOME_RUNNING)
-        {
-            announcedOutcome = worldState.outcome;
-
-            outcomeMillis = now;
-
-            pm_bz_play_jingle(
-                worldState.outcome == OUTCOME_WON ? 0 : 1
-            );
-
-            requestRedraw();
-        }
-
-        if (redrawRequested)
-        {
-            renderFrame();
-        }
-
-        if (announcedOutcome != OUTCOME_RUNNING &&
-            now - outcomeMillis >= OUTCOME_HOLD_MS)
-        {
-            running = false;
-        }
-
-        usleep(POLL_INTERVAL_MS * 1000);
-    }
+  case 'q':
+  case 'Q':
 
     saveRoom(currentRoom);
     saveWorld();
 
     pm_oled_sysmsg("GAME SAVED", 1000);
 
-    pm_bz_play_jingle(1);
+    break;
 
-    return 0;
+    /*
+        Restart the run.
+    */
+
+  case 'n':
+  case 'N':
+
+    newRun();
+
+    break;
+
+    /*
+        Add water.
+    */
+
+  case 'l':
+  case 'L': {
+    Tile &t = currentRoom.tiles[worldState.playerY][worldState.playerX];
+
+    if (t.material == MAT_EMPTY) {
+      t.material = MAT_WATER;
+
+      t.mass_g = 1000;
+    }
+
+    requestRedraw();
+
+    break;
+  }
+
+    /*
+        Add oxygen.
+    */
+
+  case 'g':
+  case 'G': {
+    Tile &t = currentRoom.tiles[worldState.playerY][worldState.playerX];
+
+    t.gas.oxygen += 100;
+
+    requestRedraw();
+
+    break;
+  }
+
+    /*
+        Add heat.
+    */
+
+  case 't':
+  case 'T': {
+    Tile &t = currentRoom.tiles[worldState.playerY][worldState.playerX];
+
+    t.temperature_c100 += 5000;
+
+    requestRedraw();
+
+    break;
+  }
+
+    /*
+        Toggle electricity.
+    */
+
+  case 'e':
+  case 'E': {
+    Tile &t = currentRoom.tiles[worldState.playerY][worldState.playerX];
+
+    t.electricity.enabled = !t.electricity.enabled;
+
+    t.electricity.voltage_mV = 12000;
+
+    t.electricity.resistance_mOhm = 6000;
+
+    requestRedraw();
+
+    break;
+  }
+
+  default:
+    break;
+  }
 }
 
+// ============================================================
+// ENTRY POINT
+// ============================================================
 
+extern "C" int main(int argc, char **argv) {
+  const char *appName = argc > 0 && argv[0] ? argv[0] : "Derelict Descent";
+
+  const char *elfPath = argc > 1 ? argv[1] : "";
+
+  printf("pocketmage app starting: %s (%s)\n", appName, elfPath);
+
+  if (pm_app_abi() != PM_APP_API_ABI) {
+    printf("host ABI mismatch: app %u, host %u; this build is stale\n",
+           PM_APP_API_ABI, static_cast<unsigned>(pm_app_abi()));
+
+    pm_oled_sysmsg("SDK ABI mismatch", 2000);
+
+    return 1;
+  }
+
+  printf("built against sdk %s, host reports %s\n", PM_SDK_VERSION,
+         pm_host_sdk_version());
+
+  pm_bz_play_jingle(0);
+
+  initializeWorld();
+
+  bool running = true;
+
+  /*
+      Track the first frame on which the run ends so the outcome can be shown
+      briefly before the app exits.
+  */
+
+  uint8_t announcedOutcome = OUTCOME_RUNNING;
+
+  uint32_t outcomeMillis = 0;
+
+  while (running) {
+    pm_kb_check_usbkb();
+
+    const char key = pm_kb_read();
+
+    if (key == K_EXIT_KEY || key == K_ESC_KEY) {
+      running = false;
+    } else if (key != 0 && pm_kb_accept_key()) {
+      if (showIntro) {
+        showIntro = false;
+
+        requestRedraw();
+      } else {
+        handleGameKey(key);
+      }
+    }
+
+    const uint32_t now = nowMillis();
+
+    if (worldState.outcome != OUTCOME_RUNNING &&
+        announcedOutcome == OUTCOME_RUNNING) {
+      announcedOutcome = worldState.outcome;
+
+      outcomeMillis = now;
+
+      pm_bz_play_jingle(worldState.outcome == OUTCOME_WON ? 0 : 1);
+
+      requestRedraw();
+    }
+
+    if (redrawRequested) {
+      renderFrame();
+    }
+
+    if (announcedOutcome != OUTCOME_RUNNING &&
+        now - outcomeMillis >= OUTCOME_HOLD_MS) {
+      running = false;
+    }
+
+    usleep(POLL_INTERVAL_MS * 1000);
+  }
+
+  saveRoom(currentRoom);
+  saveWorld();
+
+  pm_oled_sysmsg("GAME SAVED", 1000);
+
+  pm_bz_play_jingle(1);
+
+  return 0;
+}
