@@ -17,12 +17,39 @@ jobs:
           repository: TalismanDesign/PocketMage_SDK
           path: sdk
 
+      - name: Checkout the elf_overlay host tools
+        uses: actions/checkout@v4
+        with:
+          repository: TalismanDesign/elf_overlay
+          path: elf_overlay
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
       - name: Install icon tool deps
         run: python3 -m pip install pillow
+
+      - name: Install Little-Endian Xtensa Toolchain
+        run: |
+          set -euo pipefail
+          VER=esp-15.2.0_20251204
+          SHA=3d50f5cd5f173acfd524e07c1cd69bc99585731a415ca2e5bce879997fe602b8
+          TGT="$HOME/.espressif/tools/xtensa-esp-elf/$VER"
+          URL="https://github.com/espressif/crosstool-NG/releases/download/$VER/xtensa-esp-elf-15.2.0_20251204-x86_64-linux-gnu.tar.xz"
+          mkdir -p "$TGT"
+          curl -fsSL -o /tmp/xtensa-esp-elf.tar.xz "$URL"
+          echo "$SHA  /tmp/xtensa-esp-elf.tar.xz" | sha256sum -c -
+          tar -xJf /tmp/xtensa-esp-elf.tar.xz -C "$TGT"
+          echo "$TGT/xtensa-esp-elf/bin" >> "$GITHUB_PATH"
+
+      - name: Build the elf_overlay host tools
+        working-directory: elf_overlay
+        run: |
+          set -euo pipefail
+          cmake -S . -B build
+          cmake --build build --target elf_overlay_relink elf_overlay_emit
+          echo "$PWD/build" >> "$GITHUB_PATH"
 
       - name: Build the app ELF
         run: make
@@ -36,15 +63,17 @@ jobs:
 
       - name: Inspect the artifact
         run: |
-          readelf -h build/*.app.elf | grep -E 'Class|Data|Entry point'
-          ls -la build/ *.tar
+          xtensa-esp32s3-elf-readelf -h build/*.app.elf | grep -E 'Class|Data|Entry point'
+          ls -la build/
 
       - name: Gate undefined symbols against the curated SDK surface
         run: |
           python3 -m pip install -e ${{ github.workspace }}/sdk
-          python3 -m tools.pm check --ci
+          python3 -m tools.pm --ci check
+        env:
+          PM_SDK_ROOT: ${{ github.workspace }}/sdk
 
       - uses: actions/upload-artifact@v4
         with:
           name: app-tar
-          path: "*.tar"
+          path: build/*.tar

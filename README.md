@@ -1,29 +1,19 @@
 # DirelectDecent
 
-*This was made by @NellowTCS on the pocket mage discord and AI, thank them, all I did was yap!*
+A turn-based survival roguelike for PocketMage, wrapped around a small grid physics simulation: heat conduction, gas diffusion, phase change, and electrical heating. Built as an ELF app against the PocketMage SDK.
 
-The Pocket Mage PDA is a really cool project ive been waiting on for quite some time, I will be getting mine around march :) (unless theres another beta then ill try to figure that out!!)
-
-A turn-based survival roguelike for PocketMage, wrapped around a small grid
-physics simulation (heat conduction, gas diffusion, phase change, electrical
-heating).
+Credit: @NellowTCS.
 
 ## The game
 
-Your ship's reactor is dead and the air is going with it. You are the salvage
-probe sent to bring it back online.
+Your ship's reactor is dead and the air is going with it. You are the salvage probe sent to bring it back online.
 
-- **Goal** - cross the derelict and reach the reactor room (`R`), then step onto
-  the reactor. The readout shows how many rooms away it is (`REACTOR n`).
-- **O2** - your suit tank starts at 100% and drains one point per turn (four per
-  turn on a hazardous tile). At zero the suit fails and the run ends.
+- **Goal** - cross the derelict and reach the reactor room (`R`), then step onto the reactor. The readout shows how many rooms away it is (`REACTOR n`).
+- **O2** - your suit tank starts at 100% and drains one point per turn (four per turn on a hazardous tile). At zero the suit fails and the run ends.
 - **Canisters** - step onto an `o` to recover 50% O2. Spend them well.
-- **Hazards** drain the tank fast: hot rooms (`!`), cold rooms (`x`), breached
-  wiring (`e`), and oxygen-poor rooms. The status band warns when you are
-  standing in one.
+- **Hazards** drain the tank fast: hot rooms (`!`), cold rooms (`x`), breached wiring (`e`), and oxygen-poor rooms. The status band warns when you are standing in one.
 
-The world only advances when you act, so the e-ink panel refreshes only when
-something on it actually changes.
+The world only advances when you act, so the e-ink panel refreshes only when something on it actually changes.
 
 ## Controls
 
@@ -36,8 +26,7 @@ something on it actually changes.
 | `Q`              | Save world + current room                |
 | `ESC` / exit key | Quit                                     |
 
-The field kit edits the tile you are standing on and is part of the physics
-sandbox: `L` water, `G` oxygen, `T` heat, `E` toggle electricity.
+The field kit edits the tile you are standing on and is part of the physics sandbox: `L` water, `G` oxygen, `T` heat, `E` toggle electricity.
 
 ## Map legend
 

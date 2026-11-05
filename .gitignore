@@ -1,0 +1,14 @@
+# Build artifacts
+build/
+*.app.elf
+*.raw
+
+# Generated name-specific icon; regenerate from assets/icon.png via make
+*_ICON.bin
+
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
